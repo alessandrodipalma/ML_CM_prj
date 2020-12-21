@@ -1,0 +1,7 @@
+Project 12
+
+(M) is a SVR-type approach of your choice (in particular, with one or more kernels of your choice).
+
+(A) is an algorithm of the class of gradient projection methods [references: J. Nocedal, S. Wright, Numerical Optimization, http://www.tandfonline.com/doi/abs/10.1080/10556780512331318182], applied to either the primal or the dual formulation of the SVR.
+
+No off-the-shelf solvers allowed.
