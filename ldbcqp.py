@@ -3,7 +3,7 @@ from numpy import transpose as t
 from scipy.linalg import solve_triangular, cholesky
 
 class LDBCQP:
-    def __init__(self, q, Q, u, astart=1, m1=0.01, m2=0.9, eps=1e-6, max_feval=1000):
+    def __init__(self, q, Q, u, astart=1, m1=0.01, m2=0.9, eps=1e-6, max_feval=1000, dolh=False):
         self.q = q
         self.eps = eps
         self.Q = Q
@@ -11,12 +11,13 @@ class LDBCQP:
         self.n = len(q)
         self.feval = 0
         self.max_feval = max_feval
-        self.dolh = False
+        self.dolh = dolh
         self.astart = astart
         self.m1 = m1
         self.m2 = m2
         self.lam = np.zeros((2 * self.n))
         self.d = np.zeros(self.n)
+        self.v = 0
 
     def phild(self, alpha):
         """
@@ -126,7 +127,7 @@ class LDBCQP:
             # compute cost of feasible solution
             pv = 0.5 * t(y) * self.Q * y + t(self.q) * y
 
-            if pv < self.v:  # it is better than the best one found so far
+            if np.linalg.norm(pv) < np.linalg.norm(self.v):  # it is better than the best one found so far
                 self.x = y
                 self.v = pv
 
@@ -144,9 +145,10 @@ class LDBCQP:
             self.d = np.where(np.logical_and(self.lam <= 1e-12, self.d < 0), 0, self.d)
 
             if self.dolh:  # compute relative gap
-                gap = (v + p) / max(abs(v))
 
-                if gap <= self.eps:
+                gap = (self.v + p) / max(abs(np.ravel(self.v)))
+
+                if np.linalg.norm(gap) <= self.eps:
                     print("OPT\n")
                     status = 'optimal'
                     break

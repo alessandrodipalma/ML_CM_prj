@@ -39,6 +39,7 @@ class SVM:
 
     def train(self, x, d):
         # print("training with x={}, d={}".format(x,d))
+
         if len(x) == len(d):
             n = len(x)
         else:
@@ -68,12 +69,20 @@ class SVM:
         self.d = d[indexes]
         self.x = x[indexes]
 
-    def predict(self, x):
-        out = 0
-        for i in range(len(self.alpha)):
-            out += self.alpha[i] * self.d[i] * self.kernel(x, self.x[i])
+        return len(self.alpha)
 
+    def compute_out(self, x):
+        f = lambda i: self.alpha[i] * self.d[i] * self.kernel(x, self.x[i])
+        out = np.sum(np.array(list(map(f, np.arange(len(self.alpha))))))
+        # print(out)
         return out
+
+    def predict(self, x):
+        out = np.array(list(map(self.compute_out, x)))
+        # print(out)
+        return out
+
+
 
 
 
