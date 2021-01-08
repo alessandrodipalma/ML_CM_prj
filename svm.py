@@ -41,6 +41,9 @@ class SVM:
         # print("training with x={}, d={}".format(x,d))
         if len(x) == len(d):
             n = len(x)
+        else:
+            print("X and y must have same size! Got X:{}, y:{}".format(x.shape, d.shape))
+            pass
 
         K = self.compute_K(x)
         Q = np.empty(K.shape)

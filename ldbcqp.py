@@ -1,6 +1,6 @@
 import numpy as np
 from numpy import transpose as t
-
+from scipy.linalg import solve_triangular, cholesky
 
 class LDBCQP:
     def __init__(self, q, Q, u, astart=1, m1=0.01, m2=0.9, eps=1e-6, max_feval=1000):
@@ -42,7 +42,7 @@ class LDBCQP:
             am = 0
             phipm = phip0
 
-            while self.feval <= self.max_feval \
+            while lsiter <= 100 \
                     and (a_s - am) > mina \
                     and np.linalg.norm(phips) > 1e-12:
                 # compute the new value by safeguarded quadratic interpolation
@@ -92,6 +92,7 @@ class LDBCQP:
         """
         q1 = self.q + lam[:self.n] - lam[self.n:]
 
+        # TODO replace with cholesky fact and backsubstitution
         # R = np.linalg.cholesky(self.Q)
         # z = np.linalg.solve(t(R), t(-q1))
         y = np.linalg.solve(self.Q, q1)
@@ -177,7 +178,7 @@ class LDBCQP:
             indices = self.d < 0
             if np.any(indices):
 
-                min1 = min(-self.lam[indices] / d[indices])
+                min1 = min(-self.lam[indices] / self.d[indices])
                 maxt = min(self.astart, min1)
             else:
                 maxt = self.astart
