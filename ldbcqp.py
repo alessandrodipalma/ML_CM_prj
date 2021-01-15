@@ -1,9 +1,9 @@
 import numpy as np
 from numpy import transpose as t
-from scipy.linalg import solve_triangular, cholesky
+from scipy.linalg import solve_triangular, cholesky, ldl
 
 class LDBCQP:
-    def __init__(self, q, Q, u, astart=1, m1=0.01, m2=0.9, eps=1e-6, max_feval=1000, dolh=False):
+    def __init__(self, q, Q, u, astart=1, m1=0.01, m2=0.9, eps=1e-6, max_feval=100, dolh=False):
         self.q = q
         self.eps = eps
         self.Q = Q
@@ -15,11 +15,10 @@ class LDBCQP:
         self.astart = astart
         self.m1 = m1
         self.m2 = m2
-        self.lam = np.zeros((2 * self.n))
         self.d = np.zeros(self.n)
         self.v = 0
 
-    def phild(self, alpha):
+    def phild(self, alpha, lam):
         """
         phi(lambda) is the lagrangian function of the problem
         phi(alpha) = phi(lambda + alpha d)
@@ -27,14 +26,14 @@ class LDBCQP:
         :param a:
         :return:
         """
-        p, self.lastg = self.phi(self.lam + alpha * self.d)
+        p, self.lastg = self.phi(lam + alpha * self.d)
         pp = t(self.d) * self.lastg
 
         return p, pp
 
-    def armijo_wolfe_ls(self, phi0, phip0, a_s, m1, m2, sfgrd=0.01, mina=1e-12):
+    def armijo_wolfe_ls(self, phi0, phip0, a_s, m1, m2, lam, sfgrd=0.01, mina=1e-12):
         a = a_s
-        phia, phips = self.phild(a)
+        phia, phips = self.phild(a, lam)
         if np.any(phips <= 0):
             return a, phia
         else:
@@ -45,9 +44,9 @@ class LDBCQP:
 
             while lsiter <= 100 \
                     and (a_s - am) > mina \
-                    and np.linalg.norm(phips) > 1e-12:
+                    and np.all(phips > 1e-12):
                 # compute the new value by safeguarded quadratic interpolation
-                a = (am * phips - a_s * phipm) / (phips - phipm)
+                a = (am * phipm - a_s * phips) / (phipm - phips)
                 a = max([am * (1 + sfgrd) * min([a_s * (1 - sfgrd) * a])])
 
                 # compute phi(a)
@@ -91,14 +90,20 @@ class LDBCQP:
 
         @:return the function value and the primal solution
         """
+        # print(np.linalg.norm(lam))
         q1 = self.q + lam[:self.n] - lam[self.n:]
 
+
         # TODO replace with cholesky fact and backsubstitution
-        # R = np.linalg.cholesky(self.Q)
-        # z = np.linalg.solve(t(R), t(-q1))
-        y = np.linalg.solve(self.Q, q1)
+
+
+        R = np.linalg.cholesky(self.Q)
+        z = solve_triangular(R, -q1)
+        y = solve_triangular(t(R), z)
+
+
         # compute phi
-        p = (0.5 * t(y) * self.Q + t(q1)) * y - t(lam[:self.n]) * self.u
+        p = (0.5 * t(y) * self.Q + t(q1)) @ y - t(lam[:self.n]) @ self.u
 
         self.feval += 1
 
@@ -125,7 +130,7 @@ class LDBCQP:
             y[indices] = self.u[indices]
 
             # compute cost of feasible solution
-            pv = 0.5 * t(y) * self.Q * y + t(self.q) * y
+            pv = 0.5 * t(y) @ self.Q @ y + t(self.q) @ y
 
             if np.linalg.norm(pv) < np.linalg.norm(self.v):  # it is better than the best one found so far
                 self.x = y
@@ -135,36 +140,38 @@ class LDBCQP:
 
     def solve_quadratic(self):
         # print("Solving problem with q={}, Q={}, u={}".format(self.q, self.Q, self.u))
+        # choose starting point as center of the box
         self.x = self.u / 2
-        self.v = 0.5 * t(self.x) * self.Q + self.q * self.x
+        self.v = 0.5 * t(self.x) @ self.Q @ self.x + self.q @ self.x
 
-        p, self.lastg = self.phi(self.lam)
+        lam = np.zeros((2 * self.n))
+        p, self.lastg = self.phi(lam)
 
         while True:
             self.d = -self.lastg
-            self.d = np.where(np.logical_and(self.lam <= 1e-12, self.d < 0), 0, self.d)
-
-            if self.dolh:  # compute relative gap
-
-                gap = (self.v + p) / max(abs(np.ravel(self.v)))
-
-                if np.linalg.norm(gap) <= self.eps:
-                    print("OPT\n")
-                    status = 'optimal'
-                    break
-
-            else:  # compute the norm of the projected gradient
-                gnorm = np.linalg.norm(self.d)
-
-                # print("{}\t{}\t{}".format(self.feval, -p, gnorm))
-
-                if self.feval == 1:
-                    gnorm0 = gnorm
-
-                if gnorm <= self.eps * gnorm0:
-                    print("OPT\n")
-                    status = 'optimal'
-                    break
+            self.d = np.where(np.logical_and(lam <= 1e-12, self.d < 0), 0, self.d)
+            #
+            # if self.dolh:  # compute relative gap
+            #
+            #     gap = (self.v + p) / max(abs(np.ravel(self.v)))
+            #
+            #     if np.linalg.norm(gap) <= self.eps:
+            #         print("OPT\n")
+            #         status = 'optimal'
+            #         break
+            #
+            # else:  # compute the norm of the projected gradient
+            #     gnorm = np.linalg.norm(self.d)
+            #
+            #     # print("{}\t{}\t{}".format(self.feval, -p, gnorm))
+            #
+            #     if self.feval == 1:
+            #         gnorm0 = gnorm
+            #
+            #     if gnorm <= self.eps * gnorm0:
+            #         print("OPT\n")
+            #         status = 'optimal'
+            #         break
 
             # stopping criteria
 
@@ -180,13 +187,13 @@ class LDBCQP:
             indices = self.d < 0
             if np.any(indices):
 
-                min1 = min(-self.lam[indices] / self.d[indices])
+                min1 = min(lam[indices] / self.d[indices])
                 maxt = min(self.astart, min1)
             else:
                 maxt = self.astart
 
-            phip0 = t(self.lastg) * self.d
-            a, p = self.armijo_wolfe_ls(p, phip0, maxt, self.m1, self.m2)
+            phip0 = t(self.lastg) @ self.d
+            a, p = self.armijo_wolfe_ls(p, phip0, maxt, self.m1, self.m2, lam)
             # print("\t{}\n".format(a))
 
         return self.x

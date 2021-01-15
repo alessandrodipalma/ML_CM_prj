@@ -10,13 +10,13 @@ from sklearn.svm import SVC
 
 
 np.random.seed(42)
-X, y = make_classification(n_samples=400, n_features=4,
+X, y = make_classification(n_samples=100, n_features=5,
                            n_classes=2, n_clusters_per_class=1)
 # y = y / 10 + np.full(len(y), 0.1)
-y = np.where(y == 0, -1, y)
+y = np.where(y == 0, 0, y)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
 
-C=0.05
+C=1
 
 def plot_error(train, test, title=""):
 
@@ -42,9 +42,10 @@ model_sota = SVC(C=C)
 train_err_sota = []
 test_err_sota = []
 
-for i in range(10, len(X), 50):
-    n_sv = model.train(X_train[:i], y_train[:i])
+for i in range(5, len(X), 10):
+    print("i={}----------------------------------------------------------------------".format(i))
 
+    n_sv = model.train(X_train[:i], y_train[:i])
     train_err.append(mse(model.predict(X_train), y_train))
     test_err.append(mse(model.predict(X_test), y_test))
 

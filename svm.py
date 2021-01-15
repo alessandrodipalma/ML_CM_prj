@@ -1,6 +1,8 @@
 import numpy as np
 from matplotlib import pyplot
 from sklearn.datasets import make_classification
+
+from gradientprojection import GradientProjection
 from ldbcqp import LDBCQP
 
 def create_rbf_kernel(sigma):
@@ -53,8 +55,9 @@ class SVM:
             for j in range(n):
                 Q[i, j] = d[i] * d[j] * K[i, j]
 
-        alpha = LDBCQP(q=np.ones(n), Q=Q, u=np.full(len(x), self.C)).solve_quadratic()
-        # alpha = alpha.ravel()
+        alpha = GradientProjection(q=np.ones(n), Q=Q, u=np.full(len(x), self.C)).solve()
+        # alpha = LDBCQP(q=np.ones(n), Q=Q, u=np.full(len(x), self.C)).solve_quadratic()
+        # print("my = {}, frang = {}".format(alpha1, alpha))
         b = 0
         indexes = np.where(alpha > 0)
         for j in indexes:
