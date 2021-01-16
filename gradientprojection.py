@@ -1,6 +1,7 @@
 import numpy as np
-from numpy import transpose as t, invert as inv
-
+from numpy import transpose as t
+from numpy.linalg import inv as inv
+from scipy.optimize import line_search
 
 def backtracking_armijo_ls(phi, d_phi, alpha, m1, tau):
     phi0 = phi(0)
@@ -70,83 +71,112 @@ def armijo_wolfe_ls(phi: callable, d_phi: callable, a_max: float, m1=0.01, m2=0.
         a = a * tau
         # print(a)
 
+
     return a
 
 
 class GradientProjection:
 
-    def __init__(self, Q, q, u, f = None, df = None):
-        if Q.shape[0] == Q.shape[1] == q.shape[0] == u.shape[0]:
-            self.f = lambda x: 0.5 * t(x) @ Q @ x + q
+    def __init__(self, Q=None, q=None, u=None, x0=None, f = None, df = None, A=None, b=None, max_iter=100):
+        self.max_iter = max_iter
+        if Q is None:
+            if f is None:
+                raise ValueError("f is None")
+            else:
+                self.f = f
+                self.df = df
+                self.A = A
+                self.b = b
+        elif Q.shape[0] == Q.shape[1] == q.shape[0] == u.shape[0]:
+            self.f = lambda x: 0.5 * t(x) @ Q @ x + q @ x
             self.df = lambda x: Q @ x
-            self.u = u
+            self.A = np.identity(Q.shape[0])
+            self.b = u
+
         else:
             raise ValueError("Incompatible sizes Q={}, q={}, u={}".format(Q.shape, q.shape, u.shape))
 
-    def update_active_constraints(self, x, u):
-        ide = np.identity(len(x))
-        active_constr = np.where((x - u) == 0)
-        inactive_constr = np.where((x - u) != 0)
-        A1 = ide[active_constr]
+        self.x0 = x0
+
+    def update_active_constraints(self, x, A, b):
+
+        active_constr = np.where(A @ x == b)
+        # print("A={}, x={}, A@x={}, b={}, A@x==b = {}".format(A,x,A@x,b,A@x==b))
+        inactive_constr = np.where(A @ x < b)
+        A1 = A[active_constr]
         # print(active_constr)
-        b1 = u[active_constr]
-        A2 = ide[inactive_constr]
-        b2 = u[inactive_constr]
-        return A1, A2, b1, b2, np.array(active_constr)
+        b1 = b[active_constr]
+        A2 = A[inactive_constr]
+        b2 = b[inactive_constr]
+        return A1, A2, b1, b2, active_constr[0]
 
     def step_2(self, d, b2, x, A2):
         # print("x= {}\nd={}".format(x,d))
         b_hat = b2 - A2 @ x
         d_hat = A2 @ d
+        # print("A2={}, d={}".format(A2, d))
         # print("b_hat: {}, d_hat={}, d={}".format(b_hat.shape, d_hat.shape, d.shape))
-        lambda_max = min((b_hat / d_hat)[d_hat > 0])
+        if np.any(d_hat > 0):
+            lambda_max = min((b_hat[d_hat > 0] / d_hat[d_hat > 0]))
+        else:
+            lambda_max = None
         # print("max step size = ", lambda_max)
-        lambda_opt = armijo_wolfe_ls(lambda a: self.f(x + a * d), lambda a: self.df(x + a * d),
-                                     lambda_max)
+        # lambda_opt = armijo_wolfe_ls(lambda a: self.f(x + a * d), lambda a: self.df(x + a * d),
+        #                              lambda_max)
+        lambda_opt, fc, gc, new_fval, old_fval, new_slope = line_search(self.f, self.df, x, d, amax=lambda_max)
         # print("optimum step size = ", lambda_opt)
+        # print("lambda_opt={}, x={}, d={}".format(lambda_opt, x, d))
+        if lambda_opt is None and lambda_max is not None:
+            lambda_opt = lambda_max
+        else:
+            lambda_opt = 1
+
         x = x + lambda_opt * d
 
         return x
 
     def solve(self):
-        u = self.u
+        u = self.b
 
-        x = u / 2
+
+        if self.x0 is None:
+            x = u / 2
+        else:
+            x = self.x0
+
+
         zero = np.zeros(len(x))
         k = 1
+        n = x.shape[0]
+        while k<self.max_iter:
 
-        while k<100:
 
-            print(k)
-            A1, A2, b1, b2, I = self.update_active_constraints(x, u)
-
+            A1, A2, b1, b2, I = self.update_active_constraints(x, self.A, self.b)
+            print("x{}={}\tI={}".format(k, x, I))
             # active constraints are the ones s.t. x[i] - u[i] == 0
             gradient = self.df(x)
 
-            if I.shape[1] > 0:
-                if I.shape[1] == len(x):
+            if A1.shape[1] > 0:
+                if A1.shape[1] == len(x):
                     print("all constraints are binding")
                 present_k = k
 
                 while k == present_k:
                     M = A1
-
                     # useless in case of M being all ones
                     # print(M.shape)
-                    if I.shape[1] == 1:
-                        P = np.identity(M.shape[1])
-                    else:
-                        P = np.identity(M.shape[1]) - t(M) @ inv(M @ t(M)) @ M
-                    d = -(P @ gradient)
-
+                    P = np.identity(M.shape[1]) - t(M) @ inv(M @ t(M)) @ M
+                    d = -P @ gradient
+                    print("P={}, g={}, d={}".format(P, gradient, d))
                     if np.all(np.equal(d, zero)):
-                        w = -inv(M @ t(M)) @ M @ gradient
 
-                        neg = np.where(w < 0)
-                        if any(neg):
+                        w = - inv(M @ t(M)) @ M @ gradient
+                        neg = np.where(w < 0)[0]
+                        if np.any(neg):
+                            print("negative components:{}".format(neg))
                             # remove the row corresponding to the first negative component from A1
-                            A1 = np.delete(A1, neg[0], 0)
-                            b1 = np.delete(b1, neg[0], 0)
+                            A1 = np.delete(A1, neg[-1], 0)
+                            b1 = np.delete(b1, neg[-1], 0)
 
                         else:
                             # x is a kkt point
@@ -160,6 +190,7 @@ class GradientProjection:
             elif np.all(np.equal(gradient, zero)):
                 break
             else:
+                # print("here")
                 d = -gradient
                 # STEP 2
                 x = self.step_2(d, b2, x, A2)

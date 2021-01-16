@@ -1,7 +1,4 @@
 import numpy as np
-from matplotlib import pyplot
-from sklearn.datasets import make_classification
-
 from gradientprojection import GradientProjection
 from ldbcqp import LDBCQP
 
@@ -55,7 +52,13 @@ class SVM:
             for j in range(n):
                 Q[i, j] = d[i] * d[j] * K[i, j]
 
+        eig_Q, v = np.linalg.eig(Q)
+        eig_K, v = np.linalg.eig(K)
+        print("K Lmax/lmin=", np.max(eig_K) / np.min(eig_K))
+        print("Q Lmax/lmin=", np.max(eig_Q)/np.min(eig_Q), np.max(eig_Q), np.min(eig_Q))
+        print(K, Q)
         alpha = GradientProjection(q=np.ones(n), Q=Q, u=np.full(len(x), self.C)).solve()
+        print(alpha)
         # alpha = LDBCQP(q=np.ones(n), Q=Q, u=np.full(len(x), self.C)).solve_quadratic()
         # print("my = {}, frang = {}".format(alpha1, alpha))
         b = 0
