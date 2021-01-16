@@ -36,9 +36,10 @@ class SVM:
                 self.K[i][j] = self.kernel(x[i], x[j])
         return self.K
 
-    def train(self, x, d):
+    def train(self, x, d, C=None):
         # print("training with x={}, d={}".format(x,d))
-
+        if C is None:
+            C=self.C
         if len(x) == len(d):
             n = len(x)
         else:
@@ -54,11 +55,11 @@ class SVM:
 
         eig_Q, v = np.linalg.eig(Q)
         eig_K, v = np.linalg.eig(K)
-        print("K Lmax/lmin=", np.max(eig_K) / np.min(eig_K))
-        print("Q Lmax/lmin=", np.max(eig_Q)/np.min(eig_Q), np.max(eig_Q), np.min(eig_Q))
-        print(K, Q)
-        alpha = GradientProjection(q=np.ones(n), Q=Q, u=np.full(len(x), self.C)).solve()
-        print(alpha)
+        # print("K Lmax/lmin=", np.max(eig_K) / np.min(eig_K))
+        # print("Q Lmax/lmin=", np.max(eig_Q)/np.min(eig_Q), np.max(eig_Q), np.min(eig_Q))
+        # print(K, Q)
+        alpha = GradientProjection(q=np.ones(n), Q=Q, u=np.full(len(x), C)).solve()
+        print(np.linalg.norm(alpha))
         # alpha = LDBCQP(q=np.ones(n), Q=Q, u=np.full(len(x), self.C)).solve_quadratic()
         # print("my = {}, frang = {}".format(alpha1, alpha))
         b = 0

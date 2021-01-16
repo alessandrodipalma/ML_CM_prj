@@ -3,21 +3,22 @@ from numpy import transpose as t
 from numpy.linalg import inv as inv
 from scipy.optimize import line_search
 
-def backtracking_armijo_ls(phi, d_phi, alpha, m1, tau):
+def backtracking_armijo_ls(phi, d_phi, alpha, m1=0.9, tau=0.5):
     phi0 = phi(0)
     d_phi0 = d_phi(0)
+    print("phi(alpha)={}\n(phi0 + m1 * alpha * d_phi0)={}".format(phi(alpha) , (phi0 + m1 * alpha * d_phi0)))
     while phi(alpha) > (phi0 + m1 * alpha * d_phi0):
         alpha = tau * alpha
 
     return alpha
 
 
-def armijo_wolfe_ls(phi: callable, d_phi: callable, a_max: float, m1=0.01, m2=0.9, eps=1e-6, max_iter=100, tau=0.5):
+def armijo_wolfe_ls(phi: callable, d_phi: callable, a_max, m1=0.01, m2=0.9, eps=1e-6, max_iter=100, tau=0.5):
     phi_0 = phi_prev = phi(0)
     d_phi_0 = d_phi_prev = d_phi(0)
     a_prev = 0
 
-    def interpolate(a_lo: float, a_hi: float, phi_lo: float, phi_hi: float, d_phi_lo: float, d_phi_hi: float):
+    def interpolate(a_lo, a_hi, phi_lo, phi_hi, d_phi_lo, d_phi_hi):
 
         d1 = d_phi_lo + d_phi_hi - 3 * ((phi_lo - phi_hi) / (a_lo - a_hi))
         d2 = np.sign(a_hi - a_lo) * np.sqrt(d1 ** 2 - d_phi_lo * d_phi_hi)
@@ -26,7 +27,7 @@ def armijo_wolfe_ls(phi: callable, d_phi: callable, a_max: float, m1=0.01, m2=0.
 
         return a
 
-    def zoom(a_lo: float, a_hi: float, phi_lo: float, phi_hi: float, d_phi_lo: float, d_phi_hi: float):
+    def zoom(a_lo, a_hi, phi_lo, phi_hi, d_phi_lo, d_phi_hi):
 
         while True:
             a_j = interpolate(a_lo, a_hi, phi_lo, phi_hi, d_phi_lo, d_phi_hi)
@@ -48,7 +49,11 @@ def armijo_wolfe_ls(phi: callable, d_phi: callable, a_max: float, m1=0.01, m2=0.
 
     # if np.any(d_phi_x <= 0):
     #     return a_max
-    a = a_max
+    if a_max is None: # in our case, None == inf
+        print("no max to a")
+        a = 0.1
+    else:
+        a = a_max
     i = 1
 
     while i <= max_iter \
@@ -111,23 +116,21 @@ class GradientProjection:
         return A1, A2, b1, b2, active_constr[0]
 
     def step_2(self, d, b2, x, A2):
-        # print("x= {}\nd={}".format(x,d))
-        print("b2={}\nA2={}".format(b2,A2))
+        print("x= {}\nd={}".format(x,d))
+        print("b2={}\nA2@x={}".format(b2,A2@x))
         b_hat = b2 - A2 @ x
         d_hat = A2 @ d
-        # print("A2={}, d={}".format(A2, d))
-        # print("b_hat: {}, d_hat={}, d={}".format(b_hat.shape, d_hat.shape, d.shape))
+        print("A2={}, d={}".format(A2, d))
         if np.any(d_hat > 0):
-            print("b_hat={}\nd_hat={}".format(b_hat, d_hat))
+            print("b_hat={}\nd_hat={}\nb_hat/d_hat={}".format(b_hat, d_hat, (b_hat[d_hat > 0] / d_hat[d_hat > 0])))
             lambda_max = min((b_hat[d_hat > 0] / d_hat[d_hat > 0]))
         else:
             lambda_max = None
         print("max step size = ", lambda_max)
-        # lambda_opt = armijo_wolfe_ls(lambda a: self.f(x + a * d), lambda a: self.df(x + a * d),
-        #                              lambda_max)
 
-        lambda_opt, fc, gc, new_fval, old_fval, new_slope = line_search(self.f, self.df, x, d, amax=lambda_max)
-        print("optimum step size = ", lambda_opt)
+        # lambda_opt, fc, gc, new_fval, old_fval, new_slope = line_search(self.f, self.df, x, d, amax=lambda_max, maxiter=100, c1=0.1, c2=0.9)
+        lambda_opt = armijo_wolfe_ls(lambda a: self.f(x + a * d), lambda a: d @ self.df(x + a * d), lambda_max)
+        # lambda_opt = backtracking_armijo_ls(lambda a: self.f(x + a * d), lambda a: self.df(x + a * d), lambda_max)
 
         print("lambda_opt={}, x={}, d={}".format(lambda_opt, x, d))
 
@@ -164,8 +167,8 @@ class GradientProjection:
             gradient = self.df(x)
 
             if A1.shape[1] > 0:
-                if A1.shape[1] == len(x):
-                    print("all constraints are binding")
+                # if A1.shape[1] == len(x):
+                    # print("all constraints are binding")
                 present_k = k
 
                 while k == present_k:
@@ -174,14 +177,14 @@ class GradientProjection:
                     # print(M.shape)
                     P = np.identity(M.shape[1]) - t(M) @ inv(M @ t(M)) @ M
                     d = -P @ gradient
-                    print("P={}, g={}, d={}".format(P, gradient, d))
+                    # print("P={}, g={}, d={}".format(P, gradient, d))
                     if np.all(np.equal(d, zero)):
 
                         w = - inv(M @ t(M)) @ M @ gradient
-                        print("w={}".format(w))
+                        # print("w={}".format(w))
                         neg = np.where(w < 0)[0]
                         if np.any(neg):
-                            print("negative components:{}".format(neg))
+                            # print("negative components:{}".format(neg))
                             # remove the row corresponding to the first negative component from A1
                             A1 = np.delete(A1, neg[-1], 0)
                             b1 = np.delete(b1, neg[-1], 0)
@@ -192,7 +195,7 @@ class GradientProjection:
 
                     else:
                         # STEP 2
-                        print("Going to line search")
+                        # print("Going to line search")
                         x = self.step_2(d, b2, x, A2)
                         k += 1
 
