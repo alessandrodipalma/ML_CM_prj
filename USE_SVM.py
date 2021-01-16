@@ -16,7 +16,7 @@ X, y = make_classification(n_samples=100, n_features=5,
 y = np.where(y == 0, 0, y)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
 
-C=1
+C=0.01
 
 def plot_error(train, test, title=""):
 

@@ -112,25 +112,32 @@ class GradientProjection:
 
     def step_2(self, d, b2, x, A2):
         # print("x= {}\nd={}".format(x,d))
+        print("b2={}\nA2={}".format(b2,A2))
         b_hat = b2 - A2 @ x
         d_hat = A2 @ d
         # print("A2={}, d={}".format(A2, d))
         # print("b_hat: {}, d_hat={}, d={}".format(b_hat.shape, d_hat.shape, d.shape))
         if np.any(d_hat > 0):
+            print("b_hat={}\nd_hat={}".format(b_hat, d_hat))
             lambda_max = min((b_hat[d_hat > 0] / d_hat[d_hat > 0]))
         else:
             lambda_max = None
-        # print("max step size = ", lambda_max)
+        print("max step size = ", lambda_max)
         # lambda_opt = armijo_wolfe_ls(lambda a: self.f(x + a * d), lambda a: self.df(x + a * d),
         #                              lambda_max)
-        lambda_opt, fc, gc, new_fval, old_fval, new_slope = line_search(self.f, self.df, x, d, amax=lambda_max)
-        # print("optimum step size = ", lambda_opt)
-        # print("lambda_opt={}, x={}, d={}".format(lambda_opt, x, d))
-        if lambda_opt is None and lambda_max is not None:
-            lambda_opt = lambda_max
-        else:
-            lambda_opt = 1
 
+        lambda_opt, fc, gc, new_fval, old_fval, new_slope = line_search(self.f, self.df, x, d, amax=lambda_max)
+        print("optimum step size = ", lambda_opt)
+
+        print("lambda_opt={}, x={}, d={}".format(lambda_opt, x, d))
+
+        if lambda_opt is None:
+            if lambda_max is not None:
+                lambda_opt = lambda_max
+            else:
+                lambda_opt = 1
+
+        print("x = {} + {} * {}".format(x, lambda_opt, d))
         x = x + lambda_opt * d
 
         return x
@@ -152,7 +159,7 @@ class GradientProjection:
 
 
             A1, A2, b1, b2, I = self.update_active_constraints(x, self.A, self.b)
-            print("x{}={}\tI={}".format(k, x, I))
+            print("\n\nx{}={}\tI={}".format(k, x, I))
             # active constraints are the ones s.t. x[i] - u[i] == 0
             gradient = self.df(x)
 
@@ -171,6 +178,7 @@ class GradientProjection:
                     if np.all(np.equal(d, zero)):
 
                         w = - inv(M @ t(M)) @ M @ gradient
+                        print("w={}".format(w))
                         neg = np.where(w < 0)[0]
                         if np.any(neg):
                             print("negative components:{}".format(neg))
@@ -180,15 +188,16 @@ class GradientProjection:
 
                         else:
                             # x is a kkt point
-                            break
+                            return x
 
                     else:
                         # STEP 2
+                        print("Going to line search")
                         x = self.step_2(d, b2, x, A2)
                         k += 1
 
             elif np.all(np.equal(gradient, zero)):
-                break
+                return x
             else:
                 # print("here")
                 d = -gradient
