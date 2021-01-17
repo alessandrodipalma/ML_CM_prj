@@ -2,11 +2,12 @@ import numpy as np
 from numpy import transpose as t
 from numpy.linalg import inv as inv
 from scipy.optimize import line_search
+from matplotlib import pyplot as plt
 
 def backtracking_armijo_ls(phi, d_phi, alpha, m1=0.9, tau=0.5):
     phi0 = phi(0)
     d_phi0 = d_phi(0)
-    print("phi(alpha)={}\n(phi0 + m1 * alpha * d_phi0)={}".format(phi(alpha) , (phi0 + m1 * alpha * d_phi0)))
+    print("phi(alpha)={}\n(phi0 + m1 * alpha * d_phi0)={}".format(phi(alpha), (phi0 + m1 * alpha * d_phi0)))
     while phi(alpha) > (phi0 + m1 * alpha * d_phi0):
         alpha = tau * alpha
 
@@ -49,7 +50,7 @@ def armijo_wolfe_ls(phi: callable, d_phi: callable, a_max, m1=0.01, m2=0.9, eps=
 
     # if np.any(d_phi_x <= 0):
     #     return a_max
-    if a_max is None: # in our case, None == inf
+    if a_max is None:  # in our case, None == inf
         print("no max to a")
         a = 0.1
     else:
@@ -76,60 +77,124 @@ def armijo_wolfe_ls(phi: callable, d_phi: callable, a_max, m1=0.01, m2=0.9, eps=
         a = a * tau
         # print(a)
 
-
     return a
 
 
 class GradientProjection:
 
-    def __init__(self, Q=None, q=None, u=None, x0=None, f = None, df = None, A=None, b=None, max_iter=100):
+    def __init__(self, Q=None, q=None, u=None, x0=None, f=None, df=None, A=None, b=None, E=None, e=None, max_iter=100):
+        """
+        If the problem is quadratic, can specify it by Q, q, u s.t.: f(x) = 0.5* t(x) @ Q @ x + q @ x
+        Otherwise, specify f(x) and its gradient df(x), A and b which defines the inequality constraints,
+        and (E, e) which specify equality constraints.
+        :param Q:
+        :param q:
+        :param u:
+        :param x0:
+        :param f:
+        :param df:
+        :param A:
+        :param b:
+        :param E:
+        :param e:
+        :param max_iter:
+        """
         self.max_iter = max_iter
         if Q is None:
             if f is None:
                 raise ValueError("f is None")
             else:
+                if A is not None:
+                    self.A = A
+                    if b is not None:
+                        self.b = b
+                    else:
+                        raise ValueError("b must be specified along with A")
+
+                if E is not None:
+                    self.E = E
+                    if e is not None:
+                        self.e = e
+                    else:
+                        raise ValueError("e must be specified along with E")
+
+                if E is None and A is not None:
+                    self.E = np.zeros((0, A.shape[1]))
+                    self.e = np.zeros(0)
+                elif A is None and E is not None:
+                    self.A = np.zeros((0, E.shape[1]))
+                    self.b = np.zeros(0)
+                else:
+                    raise ValueError("No constraints are defined. Use another algorithm for this problem!")
+
                 self.f = f
                 self.df = df
-                self.A = A
-                self.b = b
+
         elif Q.shape[0] == Q.shape[1] == q.shape[0] == u.shape[0]:
-            self.f = lambda x: 0.5 * t(x) @ Q @ x + q @ x
+            self.f = lambda x: 0.5 * t(x) @ Q @ x + t(q) @ x
             self.df = lambda x: Q @ x
+
             self.A = np.identity(Q.shape[0])
             self.b = u
+
+            if E is None:
+                self.E = np.zeros((0, Q.shape[1]))
+                self.e = np.zeros(0)
+            else:
+                if e is not None:
+                    self.e = e
+                else:
+                    raise ValueError("e must be specified along with E")
+
+                self.E = E
+
 
         else:
             raise ValueError("Incompatible sizes Q={}, q={}, u={}".format(Q.shape, q.shape, u.shape))
 
+        # Remove redundant equality constraints
+        if self.E.shape[0] != 0:
+
+            print("self.E before", self.E)
+            self.E = np.array([self.E[i] for i in range(self.E.shape[0]) if not np.array_equal(self.A[i], self.E[i])])
+            print("self.E after", self.E)
+
+
+
         self.x0 = x0
 
-    def update_active_constraints(self, x, A, b):
+    def update_active_constraints(self, x, A, b, E, e):
 
-        active_constr = np.where(A @ x == b)
+        active_ineq_constr = np.where(A @ x == b)
         # print("A={}, x={}, A@x={}, b={}, A@x==b = {}".format(A,x,A@x,b,A@x==b))
-        inactive_constr = np.where(A @ x < b)
-        A1 = A[active_constr]
-        # print(active_constr)
-        b1 = b[active_constr]
-        A2 = A[inactive_constr]
-        b2 = b[inactive_constr]
-        return A1, A2, b1, b2, active_constr[0]
+        inactive_ineq_constr = np.where(A @ x < b)
+        A1 = A[active_ineq_constr]
+        # print(active_ineq_constr)
+        b1 = b[active_ineq_constr]
+        A2 = A[inactive_ineq_constr]
+        b2 = b[inactive_ineq_constr]
+
+        active_eq_constr = np.where(E @ x == e)
+        Q = E[active_eq_constr]
+
+        return A1, A2, b1, b2, Q, active_ineq_constr[0]
 
     def step_2(self, d, b2, x, A2):
-        print("x= {}\nd={}".format(x,d))
-        print("b2={}\nA2@x={}".format(b2,A2@x))
+        # print("x= {}\nd={}".format(x, d))
+        # print("b2={}\nA2@x={}".format(b2, A2 @ x))
         b_hat = b2 - A2 @ x
         d_hat = A2 @ d
-        print("A2={}, d={}".format(A2, d))
+        # print("A2={}, d={}".format(A2, d))
         if np.any(d_hat > 0):
-            print("b_hat={}\nd_hat={}\nb_hat/d_hat={}".format(b_hat, d_hat, (b_hat[d_hat > 0] / d_hat[d_hat > 0])))
+            # print("b_hat={}\nd_hat={}\nb_hat/d_hat={}".format(b_hat, d_hat, (b_hat[d_hat > 0] / d_hat[d_hat > 0])))
             lambda_max = min((b_hat[d_hat > 0] / d_hat[d_hat > 0]))
         else:
             lambda_max = None
-        print("max step size = ", lambda_max)
+        # print("max step size = ", lambda_max)
 
-        # lambda_opt, fc, gc, new_fval, old_fval, new_slope = line_search(self.f, self.df, x, d, amax=lambda_max, maxiter=100, c1=0.1, c2=0.9)
-        lambda_opt = armijo_wolfe_ls(lambda a: self.f(x + a * d), lambda a: self.df(x + a * d) @ d, lambda_max)
+        lambda_opt, fc, gc, new_fval, old_fval, new_slope = line_search(self.f, self.df, x, d, amax=lambda_max,
+                                                                        maxiter=100, c1=0.1, c2=0.9)
+        # lambda_opt = armijo_wolfe_ls(lambda a: self.f(x + a * d), lambda a: self.df(x + a * d) @ d, lambda_max)
         # lambda_opt = backtracking_armijo_ls(lambda a: self.f(x + a * d), lambda a:  self.df(x + a * d) @ d, lambda_max)
 
         # print("lambda_opt={}, x={}, d={}".format(lambda_opt, x, d))
@@ -146,44 +211,50 @@ class GradientProjection:
         return x
 
     def solve(self):
-        u = self.b
 
+
+
+        u = self.b
 
         if self.x0 is None:
             x = u / 2
         else:
             x = self.x0
 
-
         zero = np.zeros(len(x))
         k = 1
         n = x.shape[0]
 
-        while k<self.max_iter:
 
+        while k < self.max_iter:
 
-            A1, A2, b1, b2, I = self.update_active_constraints(x, self.A, self.b)
+            A1, A2, b1, b2, Q, I = self.update_active_constraints(x, self.A, self.b, self.E, self.e)
 
             # active constraints are the ones s.t. x[i] - u[i] == 0
             gradient = self.df(x)
-            # print("\n\nx{}={}\tI={}\tgradient={}".format(k, x, I, gradient))
-            if A1.shape[1] > 0:
+            print("\n\nx{}={}\tI={}\tgradient={}".format(k, np.linalg.norm(x), I, np.linalg.norm(gradient)))
+            if A1.shape[0] > 0:
                 # if A1.shape[1] == len(x):
-                    # print("all constraints are binding")
                 present_k = k
 
                 while k == present_k:
-                    M = A1
-                    # useless in case of M being all ones
-                    # print(M.shape)
-                    P = np.identity(M.shape[1]) - t(M) @ inv(M @ t(M)) @ M
+                    # print(self.E.shape, self.E)
+                    M = np.concatenate((A1, Q))
+
+                    try:
+                        P = np.identity(M.shape[1]) - t(M) @ inv(M @ t(M)) @ M
+                    except np.linalg.LinAlgError:
+                        print("M @ t(M) is singular with shape={}\n".format((M @ t(M)).shape, axis=0), M)
+                        raise np.linalg.LinAlgError
+
+
                     d = -P @ gradient
                     # print("P={}, g={}, d={}".format(P, gradient, d))
-                    if np.all(np.equal(d, zero)) or np.all(d < 1e-12):
+                    if np.all(np.equal(d, zero)) or np.all(np.abs(d) < 1e-15):
 
                         w = - inv(M @ t(M)) @ M @ gradient
                         # print("w={}".format(w))
-                        neg = np.where(w < 0)[0]
+                        neg = np.where(w[:A1.shape[0]] < 0)[0]
                         if np.any(neg):
                             # print("negative components:{}".format(neg))
                             # remove the row corresponding to the first negative component from A1
@@ -192,6 +263,7 @@ class GradientProjection:
 
                         else:
                             # x is a kkt point
+                            print("x is KKT")
                             return x
 
                     else:
@@ -200,7 +272,8 @@ class GradientProjection:
                         x = self.step_2(d, b2, x, A2)
                         k += 1
 
-            elif np.all(np.equal(gradient, zero)) or np.all(gradient > 1e-12):
+            elif np.all(np.equal(gradient, zero)) or np.all(np.abs(gradient) < 1e-15):
+                print("gradient is zero, stopping")
                 return x
             else:
                 # print("here")

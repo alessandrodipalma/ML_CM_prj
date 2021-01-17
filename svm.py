@@ -1,6 +1,8 @@
 import numpy as np
 from gradientprojection import GradientProjection
 from ldbcqp import LDBCQP
+from matplotlib import pyplot as plt
+
 
 def create_rbf_kernel(sigma):
     return lambda x, xi: np.exp(-np.inner(x - xi, x - xi) / (2 * sigma ** 2))
@@ -9,8 +11,9 @@ def create_rbf_kernel(sigma):
 def create_poly_kernel(p):
     return lambda x, xi: (np.inner(x, xi) + 1) ** p
 
-class SVM:
 
+class SVM:
+    # TODO labels with 0 value, or 0 data results in singular contraints matrix, should be fixed
     def __init__(self, kernel='rbf', C=0.0):
         """
 
@@ -39,7 +42,7 @@ class SVM:
     def train(self, x, d, C=None):
         # print("training with x={}, d={}".format(x,d))
         if C is None:
-            C=self.C
+            C = self.C
         if len(x) == len(d):
             n = len(x)
         else:
@@ -53,21 +56,27 @@ class SVM:
             for j in range(n):
                 Q[i, j] = d[i] * d[j] * K[i, j]
 
-        eig_Q, v = np.linalg.eig(Q)
-        eig_K, v = np.linalg.eig(K)
+        # eig_Q, v = np.linalg.eig(Q)
+        # eig_K, v = np.linalg.eig(K)
         # print("K Lmax/lmin=", np.max(eig_K) / np.min(eig_K))
         # print("Q Lmax/lmin=", np.max(eig_Q)/np.min(eig_Q), np.max(eig_Q), np.min(eig_Q))
         # print(K, Q)
-        alpha = GradientProjection(q=np.ones(n), Q=Q, u=np.full(len(x), C)).solve()
+        E = np.array([d])
+        q = np.ones(n)
+
+
+
+
+        alpha = GradientProjection(q=q, Q=Q, u=np.full(len(x), C),
+                                   E=E, e=np.zeros(1)).solve()
         print(np.linalg.norm(alpha))
         # alpha = LDBCQP(q=np.ones(n), Q=Q, u=np.full(len(x), self.C)).solve_quadratic()
         # print("my = {}, frang = {}".format(alpha1, alpha))
         b = 0
-        indexes = np.where(alpha > 0)
+        indexes = np.where(alpha > 1e-15)
         for j in indexes:
             sum = 0
             for i in range(n):
-
                 sum += alpha[i] * d[i] * K[i, j]
             b += d[j] - sum
 
@@ -76,7 +85,7 @@ class SVM:
         self.d = d[indexes]
         self.x = x[indexes]
 
-        return len(self.alpha)
+        return len(self.alpha), self.alpha
 
     def compute_out(self, x):
         f = lambda i: self.alpha[i] * self.d[i] * self.kernel(x, self.x[i])
@@ -88,11 +97,3 @@ class SVM:
         out = np.array(list(map(self.compute_out, x)))
         # print(out)
         return out
-
-
-
-
-
-
-
-
