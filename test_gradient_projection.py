@@ -19,5 +19,5 @@ A = np.array([[1,1],[1,5],[-1,0],[0,-1]])
 b = np.array([2,5,0,0])
 
 
-opt = GradientProjection(f=f, df=df, A=A, b=b, x0=np.array([0,0]), max_iter=5).solve()
+opt = GradientProjection(f=f, df=df, A=A, b=b, x0=np.array([0,0])).solve()
 print("Optimum value is: {}".format(opt))

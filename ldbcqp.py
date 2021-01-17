@@ -81,7 +81,7 @@ class LDBCQP:
 
             Q*x = -q - lambda^+ + lambda^-
 
-        Since we have computed at the beginning the Cholesk0y factorization of Q,
+        Since we have computed at the beginning the Cholesky factorization of Q,
         i.el Q = t(R) * R, R upper triangular, we obtain this by just 2 triangular backsolvers:
 
             t(R) * z = -q - lambda^+ + lambda^-
@@ -93,14 +93,9 @@ class LDBCQP:
         # print(np.linalg.norm(lam))
         q1 = self.q + lam[:self.n] - lam[self.n:]
 
-
-        # TODO replace with cholesky fact and backsubstitution
-
-
         R = np.linalg.cholesky(self.Q)
         z = solve_triangular(R, -q1)
         y = solve_triangular(t(R), z)
-
 
         # compute phi
         p = (0.5 * t(y) * self.Q + t(q1)) @ y - t(lam[:self.n]) @ self.u

@@ -129,10 +129,10 @@ class GradientProjection:
         print("max step size = ", lambda_max)
 
         # lambda_opt, fc, gc, new_fval, old_fval, new_slope = line_search(self.f, self.df, x, d, amax=lambda_max, maxiter=100, c1=0.1, c2=0.9)
-        lambda_opt = armijo_wolfe_ls(lambda a: self.f(x + a * d), lambda a: d @ self.df(x + a * d), lambda_max)
-        # lambda_opt = backtracking_armijo_ls(lambda a: self.f(x + a * d), lambda a: self.df(x + a * d), lambda_max)
+        lambda_opt = armijo_wolfe_ls(lambda a: self.f(x + a * d), lambda a: self.df(x + a * d) @ d, lambda_max)
+        # lambda_opt = backtracking_armijo_ls(lambda a: self.f(x + a * d), lambda a:  self.df(x + a * d) @ d, lambda_max)
 
-        print("lambda_opt={}, x={}, d={}".format(lambda_opt, x, d))
+        # print("lambda_opt={}, x={}, d={}".format(lambda_opt, x, d))
 
         if lambda_opt is None:
             if lambda_max is not None:
@@ -140,7 +140,7 @@ class GradientProjection:
             else:
                 lambda_opt = 1
 
-        print("x = {} + {} * {}".format(x, lambda_opt, d))
+        # print("x = {} + {} * {}".format(x, lambda_opt, d))
         x = x + lambda_opt * d
 
         return x
@@ -158,14 +158,15 @@ class GradientProjection:
         zero = np.zeros(len(x))
         k = 1
         n = x.shape[0]
+
         while k<self.max_iter:
 
 
             A1, A2, b1, b2, I = self.update_active_constraints(x, self.A, self.b)
-            print("\n\nx{}={}\tI={}".format(k, x, I))
+
             # active constraints are the ones s.t. x[i] - u[i] == 0
             gradient = self.df(x)
-
+            # print("\n\nx{}={}\tI={}\tgradient={}".format(k, x, I, gradient))
             if A1.shape[1] > 0:
                 # if A1.shape[1] == len(x):
                     # print("all constraints are binding")
@@ -178,7 +179,7 @@ class GradientProjection:
                     P = np.identity(M.shape[1]) - t(M) @ inv(M @ t(M)) @ M
                     d = -P @ gradient
                     # print("P={}, g={}, d={}".format(P, gradient, d))
-                    if np.all(np.equal(d, zero)):
+                    if np.all(np.equal(d, zero)) or np.all(d < 1e-12):
 
                         w = - inv(M @ t(M)) @ M @ gradient
                         # print("w={}".format(w))
@@ -199,7 +200,7 @@ class GradientProjection:
                         x = self.step_2(d, b2, x, A2)
                         k += 1
 
-            elif np.all(np.equal(gradient, zero)):
+            elif np.all(np.equal(gradient, zero)) or np.all(gradient > 1e-12):
                 return x
             else:
                 # print("here")
