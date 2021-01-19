@@ -7,7 +7,7 @@ from cvxopt import solvers, matrix
 
 def create_rbf_kernel(sigma):
     print("Rbf kernel with sigma = {}".format(sigma))
-    return lambda x, xi: np.exp(- 0.5 * (np.linalg.norm(x - xi) / sigma) ** 2)
+    return lambda x, xi: np.exp(- 0.5 * np.square((np.linalg.norm(x - xi) / sigma)))
 
 
 def create_poly_kernel(p):
@@ -65,7 +65,7 @@ class SVM:
         for i in range(n):
             for j in range(n):
                 Q[i, j] = d[i] * d[j] * K[i, j]
-        # print("Q:", Q)
+        print("Q:", Q)
 
         q = - np.ones(n)
         A = np.append(np.identity(n), np.diag(np.full(n, -1)), axis=0)
@@ -84,8 +84,8 @@ class SVM:
         out = solvers.qp(Q, q, A, b, E, e)
         alpha = np.array(out['x'])
 
-        # alpha = GradientProjection(x0 = np.full(q.shape, C/2), q=q, Q=Q, A=A, b=b,
-        #                            E=E.reshape((1, E.shape[0])), e=e, max_iter=100).solve()
+        # alpha = GradientProjection(x0 = np.full(n, C*0.8), q=q, Q=Q, A=A, b=b,
+        #                            E=E.reshape((1, E.shape[0])), e=e, max_iter=10).solve()
         # print(alpha)
         # alpha = LDBCQP(q=np.ones(n), Q=Q, u=np.full(len(x), self.C)).solve_quadratic()
         # print("my = {}, frang = {}".format(alpha1, alpha))
