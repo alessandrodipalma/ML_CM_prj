@@ -130,12 +130,27 @@ class GradientProjection:
                 self.f = f
                 self.df = df
 
-        elif Q.shape[0] == Q.shape[1] == q.shape[0] == u.shape[0]:
+        elif Q.shape[0] == Q.shape[1]:
+            if q is None:
+                raise ValueError("q is None")
+            elif q.shape[0] != Q.shape[0]:
+                raise ValueError("Incompatible sizes: q has shape {}, but Q has shape {}".format(q.shape, Q.shape))
+
             self.f = lambda x: 0.5 * t(x) @ Q @ x + t(q) @ x
             self.df = lambda x: Q @ x
 
-            self.A = np.identity(Q.shape[0])
-            self.b = u
+            if A is None:
+                self.A = np.identity(Q.shape[0])
+                self.b = u
+            else:
+                self.A = A
+
+                if b is None:
+                    raise ValueError("b is None but A has shape {}".format(A.shape))
+                elif A.shape[0] == b.shape[0]:
+                    self.b = b
+                else:
+                    raise ValueError("Incompatible sizes: b has shape {}, but A has shape {}".format(b.shape, A.shape))
 
             if E is None:
                 self.E = np.zeros((0, Q.shape[1]))
@@ -145,29 +160,26 @@ class GradientProjection:
                     self.e = e
                 else:
                     raise ValueError("e must be specified along with E")
-
                 self.E = E
-
-
         else:
             raise ValueError("Incompatible sizes Q={}, q={}, u={}".format(Q.shape, q.shape, u.shape))
 
         # Remove redundant equality constraints
         if self.E.shape[0] != 0:
 
-            print("self.E before", self.E)
+            # print("self.E before", self.E)
             self.E = np.array([self.E[i] for i in range(self.E.shape[0]) if not np.array_equal(self.A[i], self.E[i])])
-            print("self.E after", self.E)
+            # print("self.E after", self.E)
 
 
 
         self.x0 = x0
 
-    def update_active_constraints(self, x, A, b, E, e):
-
-        active_ineq_constr = np.where(A @ x == b)
+    def update_active_constraints(self, x, A, b, E, e, eps = 1e-6):
+        print(A, x)
+        active_ineq_constr = np.where(np.logical_and( b-np.full(b.shape, eps) < A @ x, A@x < b+np.full(b.shape, eps)))
         # print("A={}, x={}, A@x={}, b={}, A@x==b = {}".format(A,x,A@x,b,A@x==b))
-        inactive_ineq_constr = np.where(A @ x < b)
+        inactive_ineq_constr = np.where((A @ x) < (b - np.full(b.shape, eps)))
         A1 = A[active_ineq_constr]
         # print(active_ineq_constr)
         b1 = b[active_ineq_constr]
@@ -175,6 +187,7 @@ class GradientProjection:
         b2 = b[inactive_ineq_constr]
 
         active_eq_constr = np.where(E @ x == e)
+
         Q = E[active_eq_constr]
 
         return A1, A2, b1, b2, Q, active_ineq_constr[0]
@@ -211,9 +224,6 @@ class GradientProjection:
         return x
 
     def solve(self):
-
-
-
         u = self.b
 
         if self.x0 is None:
@@ -225,13 +235,14 @@ class GradientProjection:
         k = 1
         n = x.shape[0]
 
-
-        while k < self.max_iter:
+        x_old = x - 1
+        while k < self.max_iter and np.all(np.abs(x - x_old) > 1e-6):
 
             A1, A2, b1, b2, Q, I = self.update_active_constraints(x, self.A, self.b, self.E, self.e)
 
             # active constraints are the ones s.t. x[i] - u[i] == 0
             gradient = self.df(x)
+            M = np.concatenate((A1, self.E))
             print("\n\nx{}={}\tI={}\tgradient={}".format(k, np.linalg.norm(x), I, np.linalg.norm(gradient)))
             if A1.shape[0] > 0:
                 # if A1.shape[1] == len(x):
@@ -239,7 +250,7 @@ class GradientProjection:
 
                 while k == present_k:
                     # print(self.E.shape, self.E)
-                    M = np.concatenate((A1, Q))
+
 
                     try:
                         P = np.identity(M.shape[1]) - t(M) @ inv(M @ t(M)) @ M
