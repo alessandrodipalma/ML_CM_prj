@@ -10,15 +10,15 @@ from sklearn.svm import SVC
 from utils import plot_error, plot_sv_number
 
 np.random.seed(42)
-n_features = 10
-X, y = make_classification(n_samples=500, n_features=n_features,  n_classes=2, n_clusters_per_class=1, n_redundant=2)
+n_features = 100
+X, y = make_classification(n_samples=500, n_features=n_features,  n_classes=2, n_clusters_per_class=1, n_redundant=0)
 # y = y / 10 + np.full(len(y), 0.1)
 y = np.where(y ==0, -1, y)
 # print(y)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
 
 C=1
-kernel = 'linear'
+kernel = 'rbf'
 
 model = SVM(C=C, kernel=kernel)
 train_err = []

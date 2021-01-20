@@ -5,9 +5,10 @@ from matplotlib import pyplot as plt
 from cvxopt import solvers, matrix
 
 
-def create_rbf_kernel(sigma):
-    print("Rbf kernel with sigma = {}".format(sigma))
-    return lambda x, xi: np.exp(- 0.5 * np.square((np.linalg.norm(x - xi) / sigma)))
+def create_rbf_kernel(gamma):
+    print("Rbf kernel with sigma = {}".format(gamma))
+
+    return lambda x, xi: np.exp(- gamma * np.square((np.linalg.norm(x - xi))))
 
 
 def create_poly_kernel(p):
