@@ -4,6 +4,7 @@ from numpy.linalg import inv as inv
 from scipy.optimize import line_search
 from matplotlib import pyplot as plt
 
+
 def backtracking_armijo_ls(phi, d_phi, alpha, m1=0.9, tau=0.5):
     phi0 = phi(0)
     d_phi0 = d_phi(0)
@@ -166,18 +167,17 @@ class GradientProjection:
 
         # Remove redundant equality constraints
         if self.E.shape[0] != 0:
-
             # print("self.E before", self.E)
             self.E = np.array([self.E[i] for i in range(self.E.shape[0]) if not np.array_equal(self.A[i], self.E[i])])
             # print("self.E after", self.E)
 
-
-
         self.x0 = x0
 
-    def update_active_constraints(self, x, A, b, E, e, eps = 1e-6):
+    def update_active_constraints(self, x, A, b, E, e, eps=1e-6):
         print(A, x)
-        active_ineq_constr = np.where(np.logical_and( b-np.full(b.shape, eps) < A @ x, A@x < b+np.full(b.shape, eps)))
+
+        active_ineq_constr = np.where(
+            np.logical_and(b - np.full(b.shape, eps) < A @ x, A @ x < b + np.full(b.shape, eps)))
         # print("A={}, x={}, A@x={}, b={}, A@x==b = {}".format(A,x,A@x,b,A@x==b))
         inactive_ineq_constr = np.where((A @ x) < (b - np.full(b.shape, eps)))
         A1 = A[active_ineq_constr]
@@ -206,7 +206,7 @@ class GradientProjection:
         # print("max step size = ", lambda_max)
 
         lambda_opt, fc, gc, new_fval, old_fval, new_slope = line_search(self.f, self.df, x, d, amax=lambda_max,
-                                                                        maxiter=100, c1=0.1, c2=0.9)
+                                                                        maxiter=100, c1=0.01, c2=0.9)
         # lambda_opt = armijo_wolfe_ls(lambda a: self.f(x + a * d), lambda a: self.df(x + a * d) @ d, lambda_max)
         # lambda_opt = backtracking_armijo_ls(lambda a: self.f(x + a * d), lambda a:  self.df(x + a * d) @ d, lambda_max)
 
@@ -244,26 +244,26 @@ class GradientProjection:
             gradient = self.df(x)
             M = np.concatenate((A1, self.E))
             print("\n\nx{}={}\tI={}\tgradient={}".format(k, np.linalg.norm(x), I, np.linalg.norm(gradient)))
-            if A1.shape[0] > 0:
-                # if A1.shape[1] == len(x):
+
+            if A1.shape[0] > 0:  # if there is any active constraint
+
                 present_k = k
 
                 while k == present_k:
                     # print(self.E.shape, self.E)
 
-
                     try:
-                        P = np.identity(M.shape[1]) - t(M) @ inv(M @ t(M)) @ M
+                        P = np.identity(M.shape[1]) - M.T @ inv(M @ M.T) @ M
                     except np.linalg.LinAlgError:
-                        print("M @ t(M) is singular with shape={}\n".format((M @ t(M)).shape, axis=0), M)
+                        print("M @ t(M) is singular with shape={}\n".format((M @ M.T).shape, axis=0), M)
                         raise np.linalg.LinAlgError
-
 
                     d = -P @ gradient
                     # print("P={}, g={}, d={}".format(P, gradient, d))
-                    if np.all(np.equal(d, zero)) or np.all(np.abs(d) < 1e-15):
 
-                        w = - inv(M @ t(M)) @ M @ gradient
+                    if np.all(np.equal(d, zero)) or np.all(np.abs(d) < 1e-6):
+
+                        w = - inv(M @ M.T) @ M @ gradient
                         # print("w={}".format(w))
                         neg = np.where(w[:A1.shape[0]] < 0)[0]
                         if np.any(neg):
@@ -283,11 +283,12 @@ class GradientProjection:
                         x = self.step_2(d, b2, x, A2)
                         k += 1
 
-            elif np.all(np.equal(gradient, zero)) or np.all(np.abs(gradient) < 1e-15):
+            elif np.all(np.equal(gradient, zero)) or np.all(np.abs(gradient) < 1e-6):
+                # stop, we're in a local minima
                 print("gradient is zero, stopping")
                 return x
             else:
-                # print("here")
+                # we're inside the box, so we can act as if there is no constraint (almost)
                 d = -gradient
                 # STEP 2
                 x = self.step_2(d, b2, x, A2)

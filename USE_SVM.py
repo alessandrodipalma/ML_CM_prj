@@ -2,7 +2,7 @@ from matplotlib import pyplot as plt
 from sklearn.datasets import make_classification
 from sklearn.model_selection import train_test_split
 import numpy as np
-
+import libsvm.svm as SVM_lib
 from svm import SVM
 from sklearn.metrics import mean_squared_error as mse
 from sklearn.svm import SVC
@@ -10,8 +10,8 @@ from sklearn.svm import SVC
 from utils import plot_error, plot_sv_number
 
 np.random.seed(42)
-n_features = 100
-X, y = make_classification(n_samples=500, n_features=n_features,  n_classes=2, n_clusters_per_class=1, n_redundant=0)
+n_features = 10
+X, y = make_classification(n_samples=100, n_features=n_features,  n_classes=2, n_clusters_per_class=1, n_redundant=0)
 # y = y / 10 + np.full(len(y), 0.1)
 y = np.where(y ==0, -1, y)
 # print(y)

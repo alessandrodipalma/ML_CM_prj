@@ -1,5 +1,5 @@
 import numpy as np
-from gradientprojection import GradientProjection
+from convergent_rosen import GradientProjection
 from ldbcqp import LDBCQP
 from matplotlib import pyplot as plt
 from cvxopt import solvers, matrix
@@ -47,7 +47,7 @@ class SVM:
                 self.K[i][j] = self.kernel(x[i], x[j])
         return self.K
 
-    def train(self, x, d, C=None, sigma = 1):
+    def train(self, x, d, C=None, sigma=1):
         self.kernel = self.__select_kernel(self.kernel_name, sigma=sigma)
 
         # print("training with x={}, d={}".format(x,d))
@@ -66,7 +66,6 @@ class SVM:
         for i in range(n):
             for j in range(n):
                 Q[i, j] = d[i] * d[j] * K[i, j]
-        print("Q:", Q)
 
         q = - np.ones(n)
         A = np.append(np.identity(n), np.diag(np.full(n, -1)), axis=0)
@@ -75,18 +74,21 @@ class SVM:
         e = np.zeros((1, 1))
 
         # transform matrixes in cvxopt form
-        Q = matrix(Q, Q.shape, 'd')
-        q = matrix(q, (n,1), 'd')
-        A = matrix(A, A.shape, 'd')
-        b = matrix(b, (b.shape[0], 1), 'd')
-        E = matrix(E, (1, E.shape[0]), 'd')
-        e = matrix(e, (e.shape[0], 1), 'd')
-        # print("Q:{}\nq={}\nA={}\nb={}\nE={}\ne={}".format(Q,q,A,b,E,e))
-        out = solvers.qp(Q, q, A, b, E, e)
-        alpha = np.array(out['x'])
+        # Q = matrix(Q, Q.shape, 'd')
+        # q = matrix(q, (n,1), 'd')
+        # A = matrix(A, A.shape, 'd')
+        # b = matrix(b, (b.shape[0], 1), 'd')
+        # E = matrix(E, (1, E.shape[0]), 'd')
+        # e = matrix(e, (e.shape[0], 1), 'd')
+        # # print("Q:{}\nq={}\nA={}\nb={}\nE={}\ne={}".format(Q,q,A,b,E,e))
+        # options = {'maxiters': 1}
+        # out = solvers.qp(Q, q, A, b, E, e, options=options)
+        # alpha = np.array(out['x'])
 
-        # alpha = GradientProjection(x0 = np.full(n, C*0.8), q=q, Q=Q, A=A, b=b,
-        #                            E=E.reshape((1, E.shape[0])), e=e, max_iter=10).solve()
+        alpha = GradientProjection(f=lambda x: 0.5 * x.T @ Q @ x + q @ x,
+                                   df=lambda x: Q @ x + q,
+                                   A=A, b=b, Q=E.reshape((1, E.shape[0])), q=e)\
+            .solve(x0=np.full(n, C/2))
         # print(alpha)
         # alpha = LDBCQP(q=np.ones(n), Q=Q, u=np.full(len(x), self.C)).solve_quadratic()
         # print("my = {}, frang = {}".format(alpha1, alpha))
