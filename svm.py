@@ -93,14 +93,14 @@ class SVM:
         # alpha = LDBCQP(q=np.ones(n), Q=Q, u=np.full(len(x), self.C)).solve_quadratic()
         # print("my = {}, frang = {}".format(alpha1, alpha))
         b = 0
-        indexes = np.where(alpha > 1e-6)[0]
-        print(alpha)
+        indexes = np.where(alpha > (C / 100000))[0]
+        # print(alpha)
         for j in indexes:
             sum = 0
             for i in range(n):
                 sum += alpha[i] * d[i] * K[i, j]
             b += d[j] - sum
-        print("number of support vectors:", len(indexes))
+
         self.b = np.array(b / len(indexes))
         self.alpha = np.array(alpha[indexes])
         self.d = np.array(d[indexes])

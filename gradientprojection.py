@@ -15,7 +15,10 @@ def backtracking_armijo_ls(phi, d_phi, alpha, m1=0.9, tau=0.5):
     return alpha
 
 
-def armijo_wolfe_ls(phi: callable, d_phi: callable, a_max, m1=0.01, m2=0.9, eps=1e-6, max_iter=100, tau=0.5):
+def armijo_wolfe_ls(f: callable, df: callable, x, d, a_max, m1=0.01, m2=0.9, eps=1e-6, max_iter=100, tau=0.5):
+    phi = lambda a: f(x + a * d)
+    d_phi = lambda a: d @ df(x + a * d)
+
     phi_0 = phi_prev = phi(0)
     d_phi_0 = d_phi_prev = d_phi(0)
     a_prev = 0
@@ -49,18 +52,17 @@ def armijo_wolfe_ls(phi: callable, d_phi: callable, a_max, m1=0.01, m2=0.9, eps=
                 a_lo = a_j
                 d_phi_lo = d_phi_j
 
-    # if np.any(d_phi_x <= 0):
-    #     return a_max
+
     if a_max is None:  # in our case, None == inf
         print("no max to a")
-        a = 0.1
+        a = 1
     else:
         a = a_max
     i = 1
 
     while i <= max_iter \
             and abs(a - a - a_prev) > eps \
-            and np.all(phi_prev > 1e-12):
+            and np.all(phi_prev > 1e-6):
         phi_a = phi(a)
         d_phi_a = d_phi(a)
 
