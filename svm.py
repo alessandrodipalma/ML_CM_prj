@@ -47,6 +47,8 @@ class SVM:
                 self.K[i][j] = self.kernel(x[i], x[j])
         return self.K
 
+
+
     def train(self, x, d, C=None, sigma=1):
         self.kernel = self.__select_kernel(self.kernel_name, sigma=sigma)
 
@@ -67,33 +69,12 @@ class SVM:
             for j in range(n):
                 Q[i, j] = d[i] * d[j] * K[i, j]
 
-        q = - np.ones(n)
-        A = np.append(np.identity(n), np.diag(np.full(n, -1)), axis=0)
-        b = np.append(np.full(n, C), np.zeros(n))
-        E = d
-        e = np.zeros((1, 1))
-
-        # transform matrixes in cvxopt form
-        # Q = matrix(Q, Q.shape, 'd')
-        # q = matrix(q, (n,1), 'd')
-        # A = matrix(A, A.shape, 'd')
-        # b = matrix(b, (b.shape[0], 1), 'd')
-        # E = matrix(E, (1, E.shape[0]), 'd')
-        # e = matrix(e, (e.shape[0], 1), 'd')
-        # # print("Q:{}\nq={}\nA={}\nb={}\nE={}\ne={}".format(Q,q,A,b,E,e))
-        # options = {'maxiters': 1}
-        # out = solvers.qp(Q, q, A, b, E, e, options=options)
-        # alpha = np.array(out['x'])
-
-        alpha = GradientProjection(f=lambda x: 0.5 * x.T @ Q @ x + q @ x,
-                                   df=lambda x: Q @ x + q,
-                                   A=A, b=b, Q=E.reshape((1, E.shape[0])), q=e)\
-            .solve(x0=np.full(n, C/2))
-        # print(alpha)
+        alpha = self.solve_optimization(C, d, n, Q)
+        print(alpha)
         # alpha = LDBCQP(q=np.ones(n), Q=Q, u=np.full(len(x), self.C)).solve_quadratic()
         # print("my = {}, frang = {}".format(alpha1, alpha))
         b = 0
-        indexes = np.where(alpha > (C / 100000))[0]
+        indexes = np.where(alpha > (C / 10000))[0]
         # print(alpha)
         for j in indexes:
             sum = 0
@@ -101,12 +82,36 @@ class SVM:
                 sum += alpha[i] * d[i] * K[i, j]
             b += d[j] - sum
 
-        self.b = np.array(b / len(indexes))
+        try:
+            self.b = np.array(b / len(indexes))
+        except ZeroDivisionError:
+            self.b = []
+
         self.alpha = np.array(alpha[indexes])
         self.d = np.array(d[indexes])
         self.x = np.array(x[indexes])
 
         return len(self.alpha), self.alpha, indexes
+
+    def solve_optimization(self, C, d, n, Q):
+        """
+
+        :param C: regularization parameter
+        :param d: desired output
+        :param n: input vector dimension
+        :return:
+        """
+        q = - np.ones(n)
+        A = np.append(np.identity(n), np.diag(np.full(n, -1)), axis=0)
+        b = np.append(np.full(n, C), np.zeros(n))
+        E = d
+        e = np.zeros((1, 1))
+
+        alpha = GradientProjection(f=lambda x: 0.5 * x.T @ Q @ x + q @ x,
+                                   df=lambda x: Q @ x + q,
+                                   A=A, b=b, Q=E.reshape((1, E.shape[0])), q=e) \
+            .solve(x0=np.full(n, C / 2))
+        return alpha
 
     def compute_out(self, x):
         f = lambda i: self.alpha[i] * self.d[i] * self.kernel(x, self.x[i])
