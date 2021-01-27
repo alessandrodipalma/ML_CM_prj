@@ -48,20 +48,20 @@ class GradientProjection:
 
         if Q is None and A is None:
             raise ValueError("No constraints specified")
-        if Q is None:
+        elif Q is None:
             self.n = A.shape[1]
-            self.Q = np.zeros((0, self.n))
-            self.q = np.array([])
-        if A is None: # A is None
-            self.n = Q.shape[1]
-            self.A = np.zeros((0, self.n))
-            self.b = np.array([])
-        else:
-            self.n = Q.shape[1]
             self.A = A
             self.b = b
+
+            self.Q = np.zeros((0, self.n))
+            self.q = np.array([])
+        elif A is None: # A is None
+            self.n = Q.shape[1]
             self.Q = Q
             self.q = q
+
+            self.A = np.zeros((0, self.n))
+            self.b = np.array([])
 
         print("A has shape {}\n"
               "Q has shape {}".format(self.A.shape, self.Q.shape))
@@ -86,7 +86,7 @@ class GradientProjection:
         if np.any(d_hat > 0):
             lambda_max = min((b_hat[d_hat > 0] / d_hat[d_hat > 0]))
         else:
-            lambda_max = 1
+            lambda_max = None
 
         lambda_opt, fc, gc, new_fval, old_fval, new_slope = line_search(self.f, self.df, x, d, amax=lambda_max, c1=0.1, c2=0.9)
         # lambda_opt = armijo_wolfe_ls(self.f, self.df, x, d, lambda_max, max_iter=20, m1=0.1, m2=0.9)
@@ -101,8 +101,8 @@ class GradientProjection:
 
         return x
 
-    def solve(self, maxiter = 100, c=0.01, delta_d = 0.3):
-        x = np.zeros(self.n)
+    def solve(self, x0,  maxiter = 100, c=0.01, delta_d = 0.3):
+        x = x0
         x_old = np.ones(self.n)
         k = 0
         I = np.identity(x.shape[0])
@@ -115,11 +115,13 @@ class GradientProjection:
         if self.Q @ x != self.q:
             print("x0 doesn't respects equality constraints defined by Q = {}, q ={}".format(self.Q, self.q))
 
-        while k < maxiter and d is not None and norm(d_old - d) > delta_d :
+        while k < maxiter and d is not None:
 
             A1, A2, b1, b2, active_constraints = self.update_active_constraints(x, self.A, self.b)
             # M = np.concatenate((A1, self.Q))
             M = A1
+            # M = M[~np.all(M==0, axis=1)]
+            # print(M)
             gradient = self.df(x)
 
             if M.shape[0] == 0:
@@ -137,6 +139,7 @@ class GradientProjection:
                 d1 = - P @ gradient
                 w = - inv(M @ M.T) @ M @ gradient
                 u = w[:A1.shape[0]]
+
                 # print("P={}\n\nu={}".format(P, u))
                 if np.all(u >= -1e-15):
                     if np.all(d == 0):
@@ -168,12 +171,17 @@ class GradientProjection:
             if d is not None:
                 x_old = deepcopy(x)
 
+
+                # print("k={}, ||g|| = {},  ||d||= {}, x={}, d-d_old={}".format(k, norm(gradient), norm(d),norm(x), norm(d_old)-norm(d)))
+
+                # if norm(d_old) - norm(d) < delta_d and k > 1:
+                #     d = None
+                # else:
                 x = self.step_2(d, x, A2, b2)
+
                 k += 1
-                print("k={}, ||g|| = {},  ||d||= {}, x={}, d-d_old={}".format(k, norm(gradient), norm(d), norm(x), norm(d_old - d)))
 
-
-        print("converged in {} iterates. ||x|| = {}, ||g|| = {}".format(k, norm(x), norm(gradient)))
+        # print("converged in {} iterates. ||x|| = {}, ||g|| = {}".format(k, norm(x), norm(gradient)))
 
         return x
 

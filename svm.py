@@ -26,10 +26,10 @@ class SVM:
         :type C: float
         """
         self.kernel_name = kernel
-        self.kernel = self.__select_kernel(kernel, sigma, degree)
+        self.kernel = self._select_kernel(kernel, sigma, degree)
         self.C = C
 
-    def __select_kernel(self, kernel, sigma=1, p=3):
+    def _select_kernel(self, kernel, sigma=1, p=3):
         if kernel == SVM.KERNELS['rbf']:
             return create_rbf_kernel(sigma)
         elif kernel == SVM.KERNELS['poly']:
@@ -110,7 +110,7 @@ class SVM:
         alpha = GradientProjection(f=lambda x: 0.5 * x.T @ Q @ x + q @ x,
                                    df=lambda x: Q @ x + q,
                                    A=A, b=b, Q=E.reshape((1, E.shape[0])), q=e) \
-            .solve(x0=np.full(n, C / 2))
+            .solve(x0=np.full(n, 0))
         return alpha
 
     def compute_out(self, x):

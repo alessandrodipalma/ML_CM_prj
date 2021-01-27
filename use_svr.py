@@ -10,16 +10,16 @@ from utils import plot_error, plot_sv_number
 
 np.random.seed(42)
 n_features = 10
-X, y = make_regression(n_samples=1000, n_features=n_features)
+X, y = make_regression(n_samples=200, n_features=n_features)
 
 X = preprocessing.StandardScaler().fit(X).transform(X)
-y = (y-min(y))/(max(y)-min(y))
+y = 2*(y-min(y))/(max(y)-min(y)) - 1
 
 print(y)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
 
 C=1
-kernel = 'rbf'
+kernel = 'poly'
 
 model = SVR(C=C, kernel=kernel)
 train_err = []
