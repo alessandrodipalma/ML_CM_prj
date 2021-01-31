@@ -63,6 +63,7 @@ class GradientProjection:
             self.A = np.zeros((0, self.n))
             self.b = np.array([])
 
+        self.I = np.identity(self.n)
         print("A has shape {}\n"
               "Q has shape {}".format(self.A.shape, self.Q.shape))
 
@@ -124,7 +125,7 @@ class GradientProjection:
             # print(M)
             gradient = self.df(x)
 
-            if M.shape[0] == 0:
+            if A1.shape[0] == 0:
                 print("M is vacuous")
                 if np.all(gradient <= 1e-6):
                     print("no constraints, gradient is 0")
@@ -135,8 +136,7 @@ class GradientProjection:
             else:
                 # print("{} active constraints".format(active_constraints.shape[0]))
 
-                P = I - M.T @ inv(M @ M.T) @ M
-                d1 = - P @ gradient
+                d1 = self.project(A1, gradient)
                 w = - inv(M @ M.T) @ M @ gradient
                 u = w[:A1.shape[0]]
 
@@ -153,9 +153,6 @@ class GradientProjection:
                 else:
                     uh = np.min(u)
                     A1h = A1[np.where(u != uh)]
-                    # Mh = np.concatenate((A1h, self.Q))
-                    Mh = A1h
-                    Ph = I - Mh.T @ inv(Mh @ Mh.T) @ Mh
 
                     if np.linalg.norm(d1) > abs(uh) * c:
                         # print("d is d1")
@@ -164,7 +161,7 @@ class GradientProjection:
                     else:
                         # print("d is d2")
 
-                        d2 = - Ph @ gradient
+                        d2 = self.project(A1h, gradient)
                         d_old = deepcopy(d)
                         d = d2
 
@@ -184,6 +181,12 @@ class GradientProjection:
         # print("converged in {} iterates. ||x|| = {}, ||g|| = {}".format(k, norm(x), norm(gradient)))
 
         return x
+
+    def project(self, M, gradient):
+        I = self.I
+        P = I - M.T @ inv(M @ M.T) @ M
+        d1 = - P @ gradient
+        return d1
 
 
 

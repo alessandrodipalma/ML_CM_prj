@@ -62,8 +62,9 @@ class SVR(SVM):
 
             return np.append(da, da_p)
 
+
         alpha = GradientProjection(f=f, df=df, A=A, b=b) \
-            .solve(x0=np.zeros(2*n), delta_d=0.00001, maxiter=1000, c=1e-6)
+            .solve(x0=np.zeros(2*n), delta_d=0.00001, maxiter=50, c=1e-6)
 
         return alpha[:n] - alpha[n:]
 
