@@ -1,5 +1,6 @@
 from cvxopt.base import matrix
 
+from gvpm import GVPM
 from svm import SVM, np, GradientProjection
 
 class SVR(SVM):
@@ -44,6 +45,7 @@ class SVR(SVM):
         ide = np.identity(2*n)
         A = np.concatenate((ide, np.diag(np.full(2*n, -1))))
         b = np.append(np.full(2*n, C), np.zeros(2*n))
+        eps = np.full(n, self.eps)
         E = np.append(np.ones(n), -np.ones(n))
         e = np.zeros((1, 1))
 
@@ -51,11 +53,11 @@ class SVR(SVM):
             diff = x[:n] - x[n:]
             sum = x[:n] + x[n:]
 
-            return 0.5 * diff.T @ Q @ diff - d.T @ diff + self.eps * np.sum(sum)
+            return 0.5 * diff.T @ Q @ diff - d.T @ diff + eps @ sum
 
         def df(x):
             diff = x[:n] - x[n:]
-            eps = np.full(n, self.eps)
+
             Q_dot_diff = Q @ diff
             da = - d + eps + Q_dot_diff
             da_p = d + eps - Q_dot_diff
@@ -63,8 +65,13 @@ class SVR(SVM):
             return np.append(da, da_p)
 
 
-        alpha = GradientProjection(f=f, df=df, A=A, b=b) \
-            .solve(x0=np.zeros(2*n), delta_d=0.00001, maxiter=50, c=1e-6)
+        # alpha = GradientProjection(f=f, df=df, A=A, b=b) \
+        #     .solve(x0=np.zeros(2*n), delta_d=0.00001, maxiter=50, c=1e-6)
+
+        # ide = np.identity(n)
+        # A = np.concatenate((ide, np.diag(np.full(n, -1))))
+        # b = np.append(np.full(n, C), np.full(n, -C))
+        alpha = GVPM(f=f, df=df, A=A, b=b).solve(x0=np.zeros(2*n))
 
         return alpha[:n] - alpha[n:]
 

@@ -1,5 +1,6 @@
 import numpy as np
 from convergent_rosen import GradientProjection
+from gvpm import GVPM
 from ldbcqp import LDBCQP
 from matplotlib import pyplot as plt
 from cvxopt import solvers, matrix
@@ -50,7 +51,7 @@ class SVM:
 
 
     def train(self, x, d, C=None, sigma=1):
-        self.kernel = self.__select_kernel(self.kernel_name, sigma=sigma)
+        self.kernel = self._select_kernel(self.kernel_name, sigma=sigma)
 
         # print("training with x={}, d={}".format(x,d))
         if C is None:
@@ -107,9 +108,14 @@ class SVM:
         E = d
         e = np.zeros((1, 1))
 
-        alpha = GradientProjection(f=lambda x: 0.5 * x.T @ Q @ x + q @ x,
+        # alpha = GradientProjection(f=lambda x: 0.5 * x.T @ Q @ x + q @ x,
+        #                            df=lambda x: Q @ x + q,
+        #                            A=A, b=b, Q=E.reshape((1, E.shape[0])), q=e) \
+        #     .solve(x0=np.full(n, 0))
+
+        alpha = GVPM(f=lambda x: 0.5 * x.T @ Q @ x + q @ x,
                                    df=lambda x: Q @ x + q,
-                                   A=A, b=b, Q=E.reshape((1, E.shape[0])), q=e) \
+                                   A=A, b=b) \
             .solve(x0=np.full(n, 0))
         return alpha
 
