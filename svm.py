@@ -116,7 +116,7 @@ class SVM:
         alpha = GVPM(f=lambda x: 0.5 * x.T @ Q @ x + q @ x,
                                    df=lambda x: Q @ x + q,
                                    A=A, b=b) \
-            .solve(x0=np.full(n, 0))
+            .solve(x0=np.full(n, C/2))
         return alpha
 
     def compute_out(self, x):

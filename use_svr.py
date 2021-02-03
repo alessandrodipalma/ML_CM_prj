@@ -9,8 +9,8 @@ from sklearn import svm, preprocessing
 from utils import plot_error, plot_sv_number
 
 np.random.seed(42)
-n_features = 10
-X, y = make_regression(n_samples=100, n_features=n_features)
+n_features = 50
+X, y = make_regression(n_samples=300, n_features=n_features)
 
 X = preprocessing.StandardScaler().fit(X).transform(X)
 y = 2*(y-min(y))/(max(y)-min(y)) - 1
@@ -19,7 +19,7 @@ print(y)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
 
 C=1
-kernel = 'poly'
+kernel = 'rbf'
 
 model = SVR(C=C, kernel=kernel)
 train_err = []
@@ -60,7 +60,7 @@ for i in range(0, int(len(X)/batch_size)):
     # print("data: {}, support_vectors: {}, smallest: {}, greatest: {},".format(bs, n_sv, min(alphas), max(alphas), ))
     # print("data: {}, support_vectors: {}, smallest: {}, greatest: {}, ".format(bs, n_sv_sota, min(alphas), max(alphas), ))
 
-plot_error(train_err, test_err, "mySVM")
-plot_error(train_err_sota, test_err_sota, "sklearn")
+plot_error(train_err, test_err, "mySVR " + kernel)
+plot_error(train_err_sota, test_err_sota, "sklearn " + kernel)
 # plot_sv_number(sv)
 # plot_sv_number(sv_sota)

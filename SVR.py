@@ -43,37 +43,35 @@ class SVR(SVM):
 
     def solve_optimization(self, C, d, n, Q):
         ide = np.identity(2*n)
+        eps = np.full(n, self.eps)
+
+        G = np.block([[Q, -Q],[-Q, Q]])
+        q = np.concatenate((eps - d, eps + d))
+
+        print(Q, "\n", G)
         A = np.concatenate((ide, np.diag(np.full(2*n, -1))))
         b = np.append(np.full(2*n, C), np.zeros(2*n))
-        eps = np.full(n, self.eps)
+
         E = np.append(np.ones(n), -np.ones(n))
+        E = E.reshape((1,E.shape[0]))
         e = np.zeros((1, 1))
 
         def f(x):
-            diff = x[:n] - x[n:]
-            sum = x[:n] + x[n:]
-
-            return 0.5 * diff.T @ Q @ diff - d.T @ diff + eps @ sum
+            return 0.5 * x @ G @ x + q.T @ x
 
         def df(x):
-            diff = x[:n] - x[n:]
-
-            Q_dot_diff = Q @ diff
-            da = - d + eps + Q_dot_diff
-            da_p = d + eps - Q_dot_diff
-
-            return np.append(da, da_p)
+            return G @ x + q
 
 
-        # alpha = GradientProjection(f=f, df=df, A=A, b=b) \
-        #     .solve(x0=np.zeros(2*n), delta_d=0.00001, maxiter=50, c=1e-6)
+        # alpha = GradientProjection(f=f, df=df, A=A, b=b, Q=E, q=e) \
+        #     .solve(x0=np.zeros(2*n), maxiter=100)
 
         # ide = np.identity(n)
         # A = np.concatenate((ide, np.diag(np.full(n, -1))))
         # b = np.append(np.full(n, C), np.full(n, -C))
-        alpha = GVPM(f=f, df=df, A=A, b=b).solve(x0=np.zeros(2*n))
+        alpha = GVPM(G, q, A=A, b=b).solve(x0= np.zeros(2*n))
 
-        return alpha[:n] - alpha[n:]
+        return - alpha[n:] + alpha[:n]
 
     def compute_out(self, x):
         f = lambda i: self.alpha[i] * self.kernel(x, self.x[i])
