@@ -124,10 +124,7 @@ class GradientProjection:
         while k < maxiter and d is not None:
 
             A1, A2, b1, b2, active_constraints = self.update_active_constraints(x, self.A, self.b)
-            # if norm(x) == 0.0:
-            #     M = A1
-            # else:
-            #     M = np.concatenate((A1, self.Q))
+            M = np.concatenate((A1, self.Q))
             M = A1
             # M = M[~np.all(M==0, axis=1)]
             # print(M)
@@ -144,11 +141,8 @@ class GradientProjection:
             else:
                 # print("{} active constraints".format(active_constraints.shape[0]))
 
-                d1 = self.project(M, gradient)
-                w = inv(M @ M.T)
-                w = w @ M
-                w = - w @ gradient
-                # w = - ( @ M @ gradient)
+                d1 = self.project(A1, gradient)
+                w = - inv(M @ M.T) @ M @ gradient
                 u = w[:A1.shape[0]]
 
                 # print("P={}\n\nu={}".format(P, u))

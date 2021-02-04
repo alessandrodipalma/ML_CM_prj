@@ -10,7 +10,7 @@ from utils import plot_error, plot_sv_number
 
 np.random.seed(42)
 n_features = 50
-X, y = make_regression(n_samples=300, n_features=n_features)
+X, y = make_regression(n_samples=200, n_features=n_features)
 
 X = preprocessing.StandardScaler().fit(X).transform(X)
 y = 2*(y-min(y))/(max(y)-min(y)) - 1
@@ -54,7 +54,7 @@ for i in range(0, int(len(X)/batch_size)):
 
     train_err_sota.append(mse(prediction, y_train))
     test_err_sota.append(mse(model_sota.predict(X_test), y_test))
-
+    # input()
     # sv.append(n_sv)
     # sv_sota.append(n_sv_sota)
     # print("data: {}, support_vectors: {}, smallest: {}, greatest: {},".format(bs, n_sv, min(alphas), max(alphas), ))
