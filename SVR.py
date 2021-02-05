@@ -8,7 +8,7 @@ from svm import SVM, np, GradientProjection
 
 class SVR(SVM):
 
-    def __init__(self, kernel='rbf', C=1, eps=0.01, sigma=1, degree=3):
+    def __init__(self, kernel='rbf', C=1, eps=0.001, sigma=1, degree=3):
         super().__init__(kernel, C, sigma, degree)
 
         self.eps = eps
@@ -29,22 +29,19 @@ class SVR(SVM):
         # print("Kernel:", K)
         Q = np.empty(K.shape)
 
-        for i in range(n):
-            for j in range(n):
-                Q[i, j] = d[i] * d[j] * K[i, j]
+        # for i in range(n):
+        #     for j in range(n):
+        #         Q[i, j] = d[i] * d[j] * K[i, j]
 
-        alpha, self.gradient = self.solve_optimization(C, d, n, Q)
+        alpha, self.bias = self.solve_optimization(C, d, n, K)
         # print(alpha)
         # self.gradient = Q @ alpha + d
 
-        # indexes = np.where(alpha != 0)[0]
+        indexes = np.where(np.abs(alpha) > 1e-6)[0]
         # print("multipliers: ", alpha[indexes])
-        self.alpha = alpha
-
-        self.x = x
-        self.d = d
-
-        self.compute_bias()
+        self.alpha = alpha[indexes]
+        self.x = x[indexes]
+        self.d = d[indexes]
 
         return len(self.alpha), self.alpha, []
 
@@ -55,48 +52,48 @@ class SVR(SVM):
         G = np.block([[Q, -Q],[-Q, Q]])
         q = np.concatenate((eps - d, eps + d))
 
-        print(Q, "\n", G)
+        # print(Q, "\n", G)
         A = np.concatenate((ide, -ide))
         b = np.append(np.full(2*n, C), np.zeros(2*n))
 
-        E = np.append(np.ones(n), -np.ones(n))
-        E = E.reshape((1,E.shape[0]))
+        y = np.append(np.ones(n), -np.ones(n))
+        E = y.reshape((1,y.shape[0]))
         e = np.zeros((1, 1))
 
-        # alpha = GradientProjection(f=f, df=df, A=A, b=b, Q=E, q=e) \
+        # alpha = GradientProjection(f=lambda x: 0.5 * x.T @ G @ x + q.T @ x, df=lambda x: G @ x + q,
+        #                            A=A, b=b, Q=E, q=e) \
         #     .solve(x0=np.zeros(2*n), maxiter=100)
 
-        # ide = np.identity(n)
-        # A = np.concatenate((ide, np.diag(np.full(n, -1))))
-        # b = np.append(np.full(n, C), np.full(n, -C))
         alpha = qp(matrix(G), matrix(q), G=matrix(A), h=matrix(b), A=matrix(E), b=matrix(e))
-        print(alpha)
-        # alpha = GVPM(G, q, np.zeros(2*n), np.full(2*n, C)).solve(x0=np.zeros(2*n), max_iter=50)
         alpha = np.array(alpha['x']).ravel()
+        # print(alpha)
+        # alpha = GVPM(G, q, np.zeros(2*n), np.full(2*n, C)).solve(x0=np.zeros(2*n), max_iter=50)
 
-        alpha0 = alpha[:n]
-        alphaP = alpha[n:]
         # print("ALPHA", alpha0, alphaP)
         gradient = G @ alpha + q
-        return alpha[n:] - alpha[:n], gradient[n:] - gradient[:n]
+
+        ind = np.where(np.logical_and(0 < alpha, alpha <= C))
+        bias = np.mean((gradient * y)[ind])
+        return alpha[:n] - alpha[n:], 0
 
     def compute_out(self, x):
         f = lambda i: self.alpha[i] * self.kernel(x, self.x[i]) + self.bias
         out = np.sum(np.array(list(map(f, np.arange(len(self.alpha))))))
+
         # print(out)
         return out
 
     def predict(self, x):
         return np.array(list(map(self.compute_out, x)))
 
-    def compute_bias(self):
+    def compute_bias(self, alpha, gradient, y):
         sum = 0
         n = 0
-
-        for i in range(len(self.alpha)):
-            if self.alpha[i] != 0:
-                sum += self.d[i] * self.gradient[i]
+        for i in range(len(alpha)):
+            if alpha[i] != 0:
+                sum += y[i] * gradient[i]
                 n += 1
 
-        self.bias = sum / n
-        print("bias={}".format(self.bias))
+        bias = -sum / n
+        print("bias={}".format(bias))
+        return bias
