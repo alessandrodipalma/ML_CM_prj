@@ -9,8 +9,8 @@ from sklearn import svm, preprocessing
 from utils import plot_error, plot_sv_number
 
 np.random.seed(42)
-n_features = 100
-X, y = make_regression(n_samples=200, n_features=n_features)
+n_features = 1000
+X, y = make_regression(n_samples=500, n_features=n_features)
 
 X = preprocessing.StandardScaler().fit(X).transform(X)
 y = 2*(y-min(y))/(max(y)-min(y)) - 1
@@ -19,7 +19,7 @@ print(y)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
 
 C=1
-kernel = 'poly'
+kernel = 'rbf'
 
 model = SVR(C=C, kernel=kernel)
 train_err = []

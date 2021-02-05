@@ -27,8 +27,8 @@ class SVR(SVM):
 
         K = self.compute_K(x)
         # print("Kernel:", K)
-        Q = np.empty(K.shape)
-
+        # Q = np.empty(K.shape)
+        #
         # for i in range(n):
         #     for j in range(n):
         #         Q[i, j] = d[i] * d[j] * K[i, j]
@@ -64,10 +64,10 @@ class SVR(SVM):
         #                            A=A, b=b, Q=E, q=e) \
         #     .solve(x0=np.zeros(2*n), maxiter=100)
 
-        alpha = qp(matrix(G), matrix(q), G=matrix(A), h=matrix(b), A=matrix(E), b=matrix(e))
-        alpha = np.array(alpha['x']).ravel()
+        # alpha = qp(matrix(G), matrix(q), G=matrix(A), h=matrix(b))
+        # alpha = np.array(alpha['x']).ravel()
         # print(alpha)
-        # alpha = GVPM(G, q, np.zeros(2*n), np.full(2*n, C)).solve(x0=np.zeros(2*n), max_iter=50)
+        alpha = GVPM(G, q, np.zeros(2*n), np.full(2*n, C)).solve(x0=np.zeros(2*n), max_iter=50)
 
         # print("ALPHA", alpha0, alphaP)
         gradient = G @ alpha + q
