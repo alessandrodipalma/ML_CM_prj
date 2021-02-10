@@ -26,14 +26,8 @@ class SVR(SVM):
             pass
 
         K = self.compute_K(x)
-        # print("Kernel:", K)
-        # Q = np.empty(K.shape)
-        #
-        # for i in range(n):
-        #     for j in range(n):
-        #         Q[i, j] = d[i] * d[j] * K[i, j]
 
-        alpha, self.bias = self.solve_optimization(C, d, n, K)
+        alpha = self.solve_optimization(C, d, n, K)
         # print(alpha)
         # self.gradient = Q @ alpha + d
 
@@ -59,41 +53,21 @@ class SVR(SVM):
         y = np.append(np.ones(n), -np.ones(n))
         E = y.reshape((1,y.shape[0]))
         e = np.zeros((1, 1))
-
-        # alpha = GradientProjection(f=lambda x: 0.5 * x.T @ G @ x + q.T @ x, df=lambda x: G @ x + q,
-        #                            A=A, b=b, Q=E, q=e) \
-        #     .solve(x0=np.zeros(2*n), maxiter=100)
+        
+        # alpha = GradientProjection(f=lambda x: 0.5 * x.T @ G @ x + q.T @ x, df=lambda x: G @ x + q,A=A, b=b).solve(x0=np.zeros(2*n), maxiter=25)
 
         # alpha = qp(matrix(G), matrix(q), G=matrix(A), h=matrix(b))
         # alpha = np.array(alpha['x']).ravel()
-        # print(alpha)
-        alpha = GVPM(G, q, np.zeros(2*n), np.full(2*n, C)).solve(x0=np.zeros(2*n), max_iter=50)
 
-        # print("ALPHA", alpha0, alphaP)
-        gradient = G @ alpha + q
+        alpha = GVPM(G, q, np.zeros(2*n), np.full(2*n, C)).solve(x0=np.zeros(2*n), max_iter=100, min_d=1e-2)
 
-        ind = np.where(np.logical_and(0 < alpha, alpha <= C))
-        bias = np.mean((gradient * y)[ind])
-        return alpha[:n] - alpha[n:], 0
+        return alpha[:n] - alpha[n:]
 
     def compute_out(self, x):
-        f = lambda i: self.alpha[i] * self.kernel(x, self.x[i]) + self.bias
+        f = lambda i: self.alpha[i] * self.kernel(x, self.x[i])
         out = np.sum(np.array(list(map(f, np.arange(len(self.alpha))))))
-
-        # print(out)
         return out
 
     def predict(self, x):
         return np.array(list(map(self.compute_out, x)))
 
-    def compute_bias(self, alpha, gradient, y):
-        sum = 0
-        n = 0
-        for i in range(len(alpha)):
-            if alpha[i] != 0:
-                sum += y[i] * gradient[i]
-                n += 1
-
-        bias = -sum / n
-        print("bias={}".format(bias))
-        return bias

@@ -5,23 +5,27 @@ from scipy.optimize import line_search
 from matplotlib import pyplot as plt
 
 
-def backtracking_armijo_ls(phi, d_phi, alpha, m1=0.9, tau=0.5):
+def backtracking_armijo_ls(f, df, x, d, m1=0.9, tau=0.5):
+    phi = lambda a: f(x + a * d)
+    d_phi = lambda a: d @ df(x + a * d)
+    alpha = 1
     phi0 = phi(0)
     d_phi0 = d_phi(0)
-    print("phi(alpha)={}\n(phi0 + m1 * alpha * d_phi0)={}".format(phi(alpha), (phi0 + m1 * alpha * d_phi0)))
+
+    # print("phi(alpha)={}\n(phi0 + m1 * alpha * d_phi0)={}".format(phi(alpha), (phi0 + m1 * alpha * d_phi0)))
     while phi(alpha) > (phi0 + m1 * alpha * d_phi0):
         alpha = tau * alpha
 
     return alpha
 
 
-def armijo_wolfe_ls(f: callable, df: callable, x, d, a_max, m1=0.01, m2=0.9, eps=1e-6, max_iter=100, tau=0.5):
+def armijo_wolfe_ls(f: callable, df: callable, x, d, a_max, m1=0.1, m2=0.9, eps=1e-16, max_iter=1000, tau=0.1):
     phi = lambda a: f(x + a * d)
     d_phi = lambda a: d @ df(x + a * d)
 
     phi_0 = phi_prev = phi(0)
     d_phi_0 = d_phi_prev = d_phi(0)
-    a_prev = 0
+    a_prev = a_max*m1
 
     def interpolate(a_lo, a_hi, phi_lo, phi_hi, d_phi_lo, d_phi_hi):
 
