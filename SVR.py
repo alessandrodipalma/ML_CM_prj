@@ -27,11 +27,11 @@ class SVR(SVM):
 
         K = self.compute_K(x)
 
-        alpha = self.solve_optimization(C, d, n, K)
+        alpha, self.bias = self.solve_optimization(C, d, n, K)
         # print(alpha)
         # self.gradient = Q @ alpha + d
 
-        indexes = np.where(np.abs(alpha) > 1e-6)[0]
+        indexes = np.where(alpha > 1e-6)[0]
         # print("multipliers: ", alpha[indexes])
         self.alpha = alpha[indexes]
         self.x = x[indexes]
@@ -53,18 +53,23 @@ class SVR(SVM):
         y = np.append(np.ones(n), -np.ones(n))
         E = y.reshape((1,y.shape[0]))
         e = np.zeros((1, 1))
-        
-        # alpha = GradientProjection(f=lambda x: 0.5 * x.T @ G @ x + q.T @ x, df=lambda x: G @ x + q,A=A, b=b).solve(x0=np.zeros(2*n), maxiter=25)
+
+        # alpha = GradientProjection(f=lambda x: 0.5 * x.T @ G @ x + q.T @ x, df=lambda x: G @ x + q, A=A, b=b, Q=E, q=e)\
+        #     .solve(x0=np.zeros(2*n), maxiter=100)
 
         # alpha = qp(matrix(G), matrix(q), G=matrix(A), h=matrix(b))
         # alpha = np.array(alpha['x']).ravel()
 
-        alpha = GVPM(G, q, np.zeros(2*n), np.full(2*n, C)).solve(x0=np.zeros(2*n), max_iter=100, min_d=1e-2)
+        alpha = GVPM(G, q, np.zeros(2*n), np.full(2*n, C), y, e).solve(x0=np.zeros(2*n), max_iter=100, min_d=1e-5)
 
-        return alpha[:n] - alpha[n:]
+        gradient = G @ alpha + q
+        ind = np.where(np.logical_and(0 < alpha, alpha < C))
+        bias = - np.mean((gradient * y)[ind])
+        print("bias={}".format(bias))
+        return alpha[:n] - alpha[n:], bias
 
     def compute_out(self, x):
-        f = lambda i: self.alpha[i] * self.kernel(x, self.x[i])
+        f = lambda i: self.alpha[i] * self.kernel(x, self.x[i]) + self.bias
         out = np.sum(np.array(list(map(f, np.arange(len(self.alpha))))))
         return out
 

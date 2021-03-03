@@ -6,10 +6,11 @@ from matplotlib import pyplot as plt
 from cvxopt import solvers, matrix
 
 
+
 def create_rbf_kernel(gamma):
     print("Rbf kernel with sigma = {}".format(gamma))
 
-    return lambda x, xi: np.exp(- gamma * np.square((np.linalg.norm(x - xi))))
+    return lambda x, y: np.exp(- gamma * np.square((np.linalg.norm(x - y))))
 
 
 def create_poly_kernel(p):
@@ -40,12 +41,18 @@ class SVM:
         else:
             print("Not valid kernel name. Valid names are {}".format(SVM.KERNELS.values()))
 
+    # def compute_gaussian_k(self, x, gamma):
+    #
+
     def compute_K(self, x):
         n = len(x)
         self.K = np.empty((n, n))
         for i in range(n):
-            for j in range(n):
-                self.K[i][j] = self.kernel(x[i], x[j])
+            for j in range(i+1):
+                ij = self.kernel(x[i], x[j])
+                self.K[j][i] = ij
+                self.K[i][j] = ij
+
         return self.K
 
 

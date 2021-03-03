@@ -2,7 +2,7 @@ from copy import deepcopy
 
 import numpy as np
 from numpy import array
-from numpy.linalg import inv, norm
+from numpy.linalg import inv, norm, pinv
 from scipy.optimize import line_search
 from gradientprojection import armijo_wolfe_ls
 
@@ -124,13 +124,13 @@ class GradientProjection:
         while k < maxiter and d is not None:
 
             A1, A2, b1, b2, active_constraints = self.update_active_constraints(x, self.A, self.b)
-            # M = np.concatenate((A1, self.Q))
-            M = A1
+            M = np.concatenate((A1, self.Q), axis=0)
+            # M = A1
             # M = M[~np.all(M==0, axis=1)]
             # print(M)
             gradient = self.df(x)
 
-            if A1.shape[0] == 0:
+            if M.shape[0] == 0:
                 print("M is vacuous")
                 if np.all(gradient <= 1e-6):
                     print("no constraints, gradient is 0")
@@ -157,7 +157,7 @@ class GradientProjection:
 
                 else:
                     uh = np.min(u)
-                    A1h = A1[np.where(u != uh)]
+                    Mh = M[np.where(u != uh)]
 
                     if np.linalg.norm(d1) > abs(uh) * c:
                         # print("d is d1")
@@ -166,15 +166,14 @@ class GradientProjection:
                     else:
                         # print("d is d2")
 
-                        d2 = self.project(A1h, gradient)
+                        d2 = self.project(Mh, gradient)
                         d_old = deepcopy(d)
                         d = d2
 
             if d is not None:
                 x_old = deepcopy(x)
 
-
-                print("k={}, ||g|| = {},  ||d||= {}, x={}, d-d_old={}".format(k, norm(gradient), norm(d),norm(x), norm(d_old)-norm(d)))
+                # print("k={}, ||g|| = {},  ||d||= {}, x={}, d-d_old={}".format(k, norm(gradient), norm(d),norm(x), norm(d_old)-norm(d)))
 
                 # if norm(d_old) - norm(d) < delta_d and k > 1:
                 #     d = None
@@ -188,9 +187,18 @@ class GradientProjection:
         return x
 
     def project(self, M, gradient):
+        print("M\n", M)
+
+        print("gradient\n", gradient)
+
         I = self.I
+        print(M.shape)
+        print(M @ M.T)
         P = I - M.T @ inv(M @ M.T) @ M
-        d1 = - P @ gradient
+
+        d1 = np.linalg.solve(P, gradient)
+
+        print("projected gradient\n", d1)
         return d1
 
 

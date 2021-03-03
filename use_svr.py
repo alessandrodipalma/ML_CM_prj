@@ -9,8 +9,8 @@ from sklearn import svm, preprocessing
 from utils import plot_error, plot_sv_number
 
 np.random.seed(42)
-n_features = 100
-X, y = make_regression(n_samples=2000, n_features=n_features)
+n_features = 10
+X, y = make_regression(n_samples=100, n_features=n_features)
 
 X = preprocessing.StandardScaler().fit(X).transform(X)
 y = 2*(y-min(y))/(max(y)-min(y)) - 1
