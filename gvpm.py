@@ -121,8 +121,9 @@ class GVPM:
         while k == 0 or (np.max(d) > min_d and k < max_iter):
 
             print(gradient)
+            print("K={}".format(k))
             d = self._project(x - a * gradient) - x
-            print("projected d\n", d)
+            print("projected d ={}".format(norm(d)))
             # d = P @ d
 
             # if not np.all(x == 0):

@@ -12,11 +12,11 @@ class dai_fletch_a1:
         self.d = np.diagonal(A)
         self.c = c
 
-        print("solving knapsack with a = {} \n b = {} \n d = {}".format(self.a, self.b, self.d))
+        # print("solving knapsack with a = {} \n b = {} \n d = {}".format(self.a, self.b, self.d))
 
-    def _bracketing(self, lam=0, d_lam=2, max_iter):
+    def _bracketing(self, lam=0, d_lam=2):
         r = self.compute_r(lam)
-
+        print("R = {}".format(r))
         if r < 0:
             lam_l = lam
             r_l = r
@@ -24,14 +24,14 @@ class dai_fletch_a1:
 
             r = self.compute_r(lam)
 
-            while r < 0 and k < max_iter:
+            while r < 0:
                 lam_l = lam
                 r_l = r
 
                 s = max(r_l / r - 1, 0.1)
                 d_lam = d_lam + d_lam / s
                 lam = lam + d_lam
-
+                print("R = {}".format(r))
                 r = self.compute_r(lam)
 
             lam_u = lam
@@ -40,25 +40,32 @@ class dai_fletch_a1:
             lam_u = lam
             r_u = r
             lam = lam - d_lam
+
             r = self.compute_r(lam)
 
-            while r > 0 and k < max_iter:
+            while r > 0:
                 lam_u = lam
                 r_u = r
                 s = max(r_u / r - 1, 0.1)
 
                 d_lam = d_lam + d_lam / s
                 lam = lam - d_lam
-
+                print("R = {}".format(r))
                 r = self.compute_r(lam)
 
             lam_l = lam
             r_l = r
 
+
         return d_lam, lam_l, lam_u, r_l, r_u
 
-    def _secant(self, eps=1e-8):
+    def _secant(self, eps=1e-2):
         d_lam, lam_l, lam_u, r_l, r_u = self._bracketing()
+
+        if r_l == 0.0 or r_u == 0.0: # it's a KT point
+            return
+
+        print(d_lam, lam_l, lam_u, r_l, r_u)
         s = 1 - r_l / r_u
         d_lam = d_lam / s
         lam = lam_u - d_lam
@@ -104,15 +111,15 @@ class dai_fletch_a1:
         return self.x
 
     def compute_h(self, lam):
-        lam = np.float(lam)
-        print("lamda = {}\n".format(lam))
+        lam = float(lam)
+        # print("lamda = {}\n".format(lam))
         return (self.c + lam * self.a) / self.d
 
     def compute_x(self, lam):
         h = self.compute_h(lam)
-        print(np.array([self.l, h, self.u]).T, "\n")
+        # print(np.array([self.l, h, self.u]).T, "\n")
         return np.median(np.array([self.l, h, self.u]).T, axis=1)
 
     def compute_r(self, lam):
         self.x = self.compute_x(lam)
-        return self.a @ self.x - self.b
+        return float(self.a @ self.x - self.b)

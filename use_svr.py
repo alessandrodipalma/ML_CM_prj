@@ -61,6 +61,7 @@ for i in range(0, int(len(X)/batch_size)):
     # print("data: {}, support_vectors: {}, smallest: {}, greatest: {}, ".format(bs, n_sv_sota, min(alphas), max(alphas), ))
 
 plot_error(train_err, test_err, "mySVR {} C={}".format(kernel,C))
+print(test_err)
 plot_error(train_err_sota, test_err_sota, "sklearn " + kernel)
 # plot_sv_number(sv)
 # plot_sv_number(sv_sota)
