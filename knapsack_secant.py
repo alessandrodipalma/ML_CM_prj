@@ -1,9 +1,20 @@
 import numpy as np
+from matplotlib import pyplot as plt
+from numpy.linalg import norm
 
 
 class dai_fletch_a1:
 
     def __init__(self, l, u, a, b, A, c):
+        """
+        n = len(x)
+        :param l: lower bounds
+        :param u: upper bounds
+        :param a: constraints s.t. a.T @ x = b
+        :param b: scalar s.t. a.T @ x = b
+        :param A: nxn matrix s.t. f(x) = 1/2 * x.T @ A @ x - c.T @ x
+        :param c: n-sized vector s.t. f(x) = 1/2 * x.T @ A @ x - c.T @ x
+        """
         self.l = l
         self.u = u
         self.a = a
@@ -11,6 +22,7 @@ class dai_fletch_a1:
         self.A = A
         self.d = np.diagonal(A)
         self.c = c
+        self.xtory = []
 
         # print("solving knapsack with a = {} \n b = {} \n d = {}".format(self.a, self.b, self.d))
 
@@ -59,8 +71,8 @@ class dai_fletch_a1:
 
         return d_lam, lam_l, lam_u, r_l, r_u
 
-    def _secant(self, eps=1e-2):
-        d_lam, lam_l, lam_u, r_l, r_u = self._bracketing()
+    def _secant(self, lam_i=0, d_lam=2, eps=1e-2):
+        d_lam, lam_l, lam_u, r_l, r_u = self._bracketing(lam_i, d_lam)
 
         if r_l == 0.0 or r_u == 0.0: # it's a KT point
             return
@@ -106,8 +118,8 @@ class dai_fletch_a1:
 
         return
 
-    def solve(self):
-        self._secant()
+    def solve(self, lam_i=0, d_lam=2):
+        self._secant(lam_i, d_lam)
         return self.x
 
     def compute_h(self, lam):
@@ -122,4 +134,11 @@ class dai_fletch_a1:
 
     def compute_r(self, lam):
         self.x = self.compute_x(lam)
+        self.xtory.append(norm(self.x))
         return float(self.a @ self.x - self.b)
+
+    def plot_xtory(self, title="xtory", color="g"):
+        plt.plot(range(0, len(self.xtory)), self.xtory, c=color)
+        plt.title(title)
+        plt.yscale('log')
+        plt.show()

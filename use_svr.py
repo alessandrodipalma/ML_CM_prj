@@ -21,7 +21,7 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random
 C=1
 kernel = 'rbf'
 
-model = SVR(C=C, kernel=kernel)
+model = SVR(C=C, kernel=kernel, eps=C/10)
 train_err = []
 test_err = []
 
@@ -59,7 +59,7 @@ for i in range(0, int(len(X)/batch_size)):
     # sv_sota.append(n_sv_sota)
     # print("data: {}, support_vectors: {}, smallest: {}, greatest: {},".format(bs, n_sv, min(alphas), max(alphas), ))
     # print("data: {}, support_vectors: {}, smallest: {}, greatest: {}, ".format(bs, n_sv_sota, min(alphas), max(alphas), ))
-
+    # input()
 plot_error(train_err, test_err, "mySVR {} C={}".format(kernel,C))
 print(test_err)
 plot_error(train_err_sota, test_err_sota, "sklearn " + kernel)

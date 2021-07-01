@@ -5,6 +5,7 @@ def plot_error(train, test, title=""):
     plt.plot(range(0, len(train)), train, c='b', label='train')
     plt.title(title)
     plt.legend(loc='upper right')
+    # plt.yscale('log')
     plt.show()
 
 def plot_sv_number(sv):

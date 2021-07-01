@@ -1,10 +1,11 @@
+import math
 from copy import deepcopy
 
 import numpy as np
 from numpy.linalg import norm, inv, matrix_power
 from scipy.optimize.linesearch import line_search
 from matplotlib import pyplot as plt
-
+from robinson import robinson
 from gradientprojection import armijo_wolfe_ls, backtracking_armijo_ls
 from knapsack_secant import dai_fletch_a1
 
@@ -13,9 +14,9 @@ class GVPM:
     Solves a quadratic problem with box constraints using the Generalized Variable Projection Method.
     """
 
-    def __init__(self, Q, q, left_constr, right_constr, y, b, a_min=1e-30, a_max=1e30,
+    def __init__(self, Q, q, left_constr, right_constr, y, b, a_min=1e-12, a_max=1e12,
                  n_min=3,
-                 lam_low=0.1, lam_upp=1):
+                 lam_low=1e-3, lam_upp=1):
         """
 
         :param Q: gram
@@ -34,11 +35,12 @@ class GVPM:
         self.Q_square = matrix_power(Q, 2)
         self.q = q
 
-        self.f = lambda x: 0.5 * x.T @ Q @ x + q @ x
+        self.f = lambda x: 0.5 * ( x.T @ Q @ x ) + q @ x
         self.df = lambda x: Q @ x + q
 
         self.left_constr = left_constr
         self.right_constr = right_constr
+        print("left={}\nright={}".format(left_constr,right_constr))
         self.n = self.Q.shape[1]
         self.a_min = a_min
         self.a_max = a_max
@@ -87,59 +89,70 @@ class GVPM:
     def _is_steplength_separator(self, a, a_new):
         return a_new[2] < a < a_new[1]
 
+    # def line_search(self, x, d, l):
+    #     l_new = self.lam_upp
+    #     k = 0
+    #     x = np.copy(x)
+    #     while norm(d) > 1e-3:
+    #         l_new = (d.T @ d) / (d.T @ self.Q @ d)
+    #         d = self._project(x - l_new * self.df(x)) - x
+    #         x += float(l_new) * d
+    #         k += 1
+    #
+    #     if l_new is not None:
+    #         l = l_new
+    #     else:
+    #         l = self.lam_upp
+    #     if math.isnan(l):
+    #         l = self.lam_low
+    #     return l
     def line_search(self, x, d, l):
-        l_new = self.lam_upp
-        k = 0
-        while norm(d) > 1e-3:
-            l_new = (d.T @ d) / (d.T @ self.Q @ d)
-            d = self._project(x - l_new * self.df(x)) - x
-            x += l_new * d
-            k += 1
-
+        l_new = backtracking_armijo_ls(self.f, self.df, x, d)
+        # print("lambda_opt={}".format(l_new))
         if l_new is not None:
             l = l_new
-        else:
+        if l_new < self.lam_low:
+            l = self.lam_low
+        if l_new > self.lam_upp:
             l = self.lam_upp
 
         return l
 
+
     def _project(self, x):
-        return dai_fletch_a1(self.left_constr, self.right_constr,
-                             self.y, self.b, np.identity(self.n), x).solve()
+        # xp = robinson(self.left_constr, self.right_constr, self.y, self.b).solve(x)
+        solver = dai_fletch_a1(self.left_constr, self.right_constr,
+                             self.y, self.b, np.identity(self.n), x)
+        xp = solver.solve(lam_i = 1, d_lam= 2)
+        # solver.plot_xtory()
+        return xp
 
 
 
-    def solve(self, x0, max_iter=100, min_d=1e-5):
+    def solve(self, x0, max_iter=30, min_d=1e-3):
         x = x0
         k = 0
-        lam = 0.5
+        lam = 1
         # P = np.identity(self.n) - 1
         # print("g:{}\td={}\ta={}".format(norm(gradient), d,a))
+        print(x)
         gradient = self.df(x)
-        a = 1 / np.max(self._project(x - gradient) - x)
+        a = abs(1 / np.max(self._project(x - gradient) - x))
+        gs = []
+        ds = []
+        while k == 0 or (norm(d) > min_d and k<max_iter):
 
-        while k == 0 or (np.max(d) > min_d and k < max_iter):
-
-            print(gradient)
-            print("K={}".format(k))
+            # print("before\t gradient={}\tx={}\ta={}".format(norm(gradient), norm(x), a))
+            # print("K={}\tx={}".format(k, norm(x)))
             d = self._project(x - a * gradient) - x
-            print("projected d ={}".format(norm(d)))
-            # d = P @ d
-
-            # if not np.all(x == 0):
-            # M = np.append(np.ones(self.n), -np.ones(self.n))
-
-            # P = np.identity(self.n) - (M.T @ M) / (M @ M.T)
-
-            # print("M@M.T = {}\tM.T@M={}\td={}".format((M.T @ M), (M @ M.T), 0))
+            # print("projected d ={}".format(norm(d)))
 
             lam = self.line_search(x, d, lam)
-
-            # print("\n\nK={}\tx:{}\tg:{}\ta:{}\td:{}\tlambda:{}\n".format(k, norm(x), norm(gradient), a, norm(d), lam))
+            # print("lambda ", lam)
 
             x = x + lam * d
             gradient = self.df(x)
-
+            print("gradient {}\tx={}\td={}\tlambda={}".format(norm(gradient), norm(x), norm(d), lam))
             if d.T @ self.Q @ d <= 0:
                 print("amax")
                 a = self.a_max
@@ -148,11 +161,20 @@ class GVPM:
                 a = min(self.a_max, max(self.a_min, a_new))
             k += 1
 
-        # self.plot_gradient(gs)
-        print("K={}".format(k))
-        return x
+            gs.append(norm(gradient))
+            ds.append(norm(d))
+        print("LAST K={}".format(k))
+        print(norm(x), "  ", norm(gradient))
 
-    def plot_gradient(self, gradient_history):
-        plt.plot(range(0, len(gradient_history)), gradient_history, c='b')
-        plt.title('gradient norm descent')
+        # self.plot_gradient(gs, title="gradient norm descent")
+        # self.plot_gradient(ds, title="projected gradient norm descent", color='r')
+        # input()
+
+
+        return x, d
+
+    def plot_gradient(self, gradient_history, title, color='b'):
+        plt.plot(range(0, len(gradient_history)), gradient_history, c=color)
+        plt.title(title)
+        plt.yscale('log')
         plt.show()

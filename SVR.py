@@ -6,6 +6,7 @@ from cvxopt import matrix
 from cvxopt.solvers import qp
 from svm import SVM, np, GradientProjection
 
+
 class SVR(SVM):
 
     def __init__(self, kernel='rbf', C=1, eps=0.001, sigma=1, degree=3):
@@ -31,7 +32,7 @@ class SVR(SVM):
         # print(alpha)
         # self.gradient = Q @ alpha + d
 
-        indexes = np.where(alpha > 1e-6)[0]
+        indexes = np.where(alpha > C/10000)[0]
         # print("multipliers: ", alpha[indexes])
         self.alpha = alpha[indexes]
         self.x = x[indexes]
@@ -40,32 +41,45 @@ class SVR(SVM):
         return len(self.alpha), self.alpha, []
 
     def solve_optimization(self, C, d, n, Q):
-        ide = np.identity(2*n)
-        eps = np.full(n,- self.eps)
+        ide = np.identity(2 * n)
+        eps = np.full(n, - self.eps)
 
-        G = np.block([[Q, -Q],[-Q, Q]])
+        G = np.block([[Q, -Q], [-Q, Q]])
         q = np.concatenate((eps - d, eps + d))
 
+        # box constraints
+        l = np.full(2 * n, 0.)
+        u = np.full(2 * n, float(C))
+
+        # knapsack constraint
+        y = np.append(np.full(n, 1.), np.full(n, -1.))
+        e = np.full((1, 1), 0.)
+
+        # x0 = np.random.uniform(low=0.01, high=C * 0.99, size=(2 * n,))
+        x0 = np.zeros(2*n)
         # print(Q, "\n", G)
+
+        # cvxopt solver
         A = np.concatenate((ide, -ide))
         b = np.append(np.full(2*n, C), np.zeros(2*n))
+        # E = y.reshape((1, y.shape[0]))
 
-        y = np.append(np.ones(n), -np.ones(n))
-        E = y.reshape((1,y.shape[0]))
-        e = np.zeros((1, 1))
+        out = qp(matrix(G), matrix(q), G=matrix(A), h=matrix(b))
+        alpha = np.array(out['x']).ravel()
 
-        # alpha = GradientProjection(f=lambda x: 0.5 * x.T @ G @ x + q.T @ x, df=lambda x: G @ x + q, A=A, b=b, Q=E, q=e)\
-        #     .solve(x0=np.zeros(2*n), maxiter=100)
+        # alpha, gradient = GVPM(G, q, l, u, y, e).solve(x0=x0, max_iter=100, min_d=1e-6)
 
-        # alpha = qp(matrix(G), matrix(q), G=matrix(A), h=matrix(b))
-        # alpha = np.array(alpha['x']).ravel()
+        # gradient = G @ alpha + q
+        # ind = np.where(np.logical_and(0 <= alpha, alpha <= C))
+        print(alpha)
+        print("sum: {}".format(np.sum(alpha * y)))
+        # print(ind)
+        bias = -np.mean(gradient*y)
+        # bias = 0
+        # bias = 0
 
-        alpha = GVPM(G, q, np.zeros(2*n), np.full(2*n, C), y, e).solve(x0=np.zeros(2*n), max_iter=100, min_d=1e-5)
-
-        gradient = G @ alpha + q
-        ind = np.where(np.logical_and(0 < alpha, alpha < C))
-        bias = - np.mean((gradient * y)[ind])
         print("bias={}".format(bias))
+        # input()
         return alpha[:n] - alpha[n:], bias
 
     def compute_out(self, x):
@@ -75,4 +89,3 @@ class SVR(SVM):
 
     def predict(self, x):
         return np.array(list(map(self.compute_out, x)))
-
