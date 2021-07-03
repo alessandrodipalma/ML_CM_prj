@@ -9,26 +9,28 @@ from sklearn import svm, preprocessing
 from utils import plot_error, plot_sv_number
 
 np.random.seed(42)
-n_features = 10
-X, y = make_regression(n_samples=100, n_features=n_features)
+n_features = 300
+X, y = make_regression(n_samples=5000, n_features=n_features)
 
 X = preprocessing.StandardScaler().fit(X).transform(X)
-y = 2*(y-min(y))/(max(y)-min(y)) - 1
+y = 2 * (y - min(y)) / (max(y) - min(y)) - 1
 
 print(y)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
 
-C=1
+C = 1
 kernel = 'rbf'
+eps = 0.1
+gamma = 'scale'
 
-model = SVR(C=C, kernel=kernel, eps=0.001)
+model = SVR(C=C, kernel=kernel, eps=eps, gamma=gamma)
 train_err = []
 test_err = []
 
 sv = []
 sv_sota = []
 
-model_sota = svm.SVR(C=C, kernel=kernel)
+model_sota = svm.SVR(C=C, kernel=kernel, epsilon=eps, gamma=gamma)
 train_err_sota = []
 test_err_sota = []
 
@@ -36,11 +38,11 @@ batch_size = int(len(X_train) / 10)
 
 print(batch_size)
 
-for i in range(0, int(len(X)/batch_size)):
+for i in range(0, int(len(X) / batch_size)):
     print("i={}----------------------------------------------------------------------".format(i))
-    bs = (i+1)*batch_size
+    bs = (i + 1) * batch_size
 
-    n_sv, alphas, indices = model.train(X_train[:bs], y_train[:bs], sigma = 1 / (n_features * X_train.var()))
+    n_sv, alphas, indices = model.train(X_train[:bs], y_train[:bs])
     prediction = model.predict(X_train)
 
     train_err.append(mse(prediction, y_train))
@@ -60,8 +62,8 @@ for i in range(0, int(len(X)/batch_size)):
     # print("data: {}, support_vectors: {}, smallest: {}, greatest: {},".format(bs, n_sv, min(alphas), max(alphas), ))
     # print("data: {}, support_vectors: {}, smallest: {}, greatest: {}, ".format(bs, n_sv_sota, min(alphas), max(alphas), ))
     # input()
-plot_error(train_err, test_err, "mySVR {} C={}".format(kernel,C))
-print(test_err)
-plot_error(train_err_sota, test_err_sota, "sklearn " + kernel)
+plot_error(train_err, test_err, "mySVR {} C={} eps={}".format(kernel, C, eps))
+# print(test_err)
+plot_error(train_err_sota, test_err_sota, "sklearn {} C={} eps={}".format(kernel, C, eps))
 # plot_sv_number(sv)
 # plot_sv_number(sv_sota)

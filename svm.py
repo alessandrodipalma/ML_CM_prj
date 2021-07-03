@@ -7,37 +7,43 @@ from cvxopt import solvers, matrix
 
 
 
-def create_rbf_kernel(gamma):
-    print("Rbf kernel with sigma = {}".format(gamma))
-
-    return lambda x, y: np.exp(- gamma * np.square((np.linalg.norm(x - y))))
 
 
-def create_poly_kernel(p):
-    print("Polinomial kernel with grade {}".format(p))
-    return lambda x, xi: (np.inner(x, xi) + 1) ** p
+
+
 
 
 class SVM:
     KERNELS = {'rbf': 'rbf', 'poly': 'poly', 'linear': 'linear'}
 
     # TODO labels with 0 value, or 0 data results in singular contraints matrix, should be fixed
-    def __init__(self, kernel='rbf', C=1.0, sigma=1, degree=3):
+    def __init__(self, kernel='rbf', C=1.0, gamma='scale', degree=3):
         """
 
         :type C: float
         """
         self.kernel_name = kernel
-        self.kernel = self._select_kernel(kernel, sigma, degree)
+        self.kernel = self._select_kernel(kernel, gamma, degree)
         self.C = C
+        self.gamma = gamma
+        self.gamma_value = None
 
-    def _select_kernel(self, kernel, sigma=1, p=3):
+    def create_rbf_kernel(self):
+        # print("Rbf kernel with sigma = {}".format(gamma))
+
+        return lambda x, y: np.exp(- self.gamma_value * np.square((np.linalg.norm(x - y))))
+
+    def create_poly_kernel(self, p):
+        print("Polinomial kernel with grade {}".format(p))
+        return lambda x, xi: (self.gamma_value * np.inner(x, xi) + 1) ** p
+
+    def _select_kernel(self, kernel, gamma, degree):
         if kernel == SVM.KERNELS['rbf']:
-            return create_rbf_kernel(sigma)
+            return self.create_rbf_kernel()
         elif kernel == SVM.KERNELS['poly']:
-            return create_poly_kernel(p)
+            return self.create_poly_kernel(degree)
         elif kernel == SVM.KERNELS['linear']:
-            return create_poly_kernel(1)
+            return self.create_poly_kernel(1)
         else:
             print("Not valid kernel name. Valid names are {}".format(SVM.KERNELS.values()))
 
@@ -57,8 +63,11 @@ class SVM:
 
 
 
-    def train(self, x, d, C=None, sigma=1):
-        self.kernel = self._select_kernel(self.kernel_name, sigma=sigma)
+    def train(self, x, d, C=None):
+        if self.gamma == 'auto':
+            self.gamma_value = 1 / len(x)
+        elif self.gamma == 'scale':
+            self.gamma_value = 1 / (len(x) * x.var())
 
         # print("training with x={}, d={}".format(x,d))
         if C is None:
