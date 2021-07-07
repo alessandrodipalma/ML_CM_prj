@@ -1,16 +1,5 @@
 import numpy as np
-from convergent_rosen import GradientProjection
 from gvpm import GVPM
-from ldbcqp import LDBCQP
-from matplotlib import pyplot as plt
-from cvxopt import solvers, matrix
-
-
-
-
-
-
-
 
 
 class SVM:
@@ -54,29 +43,24 @@ class SVM:
         n = len(x)
         self.K = np.empty((n, n))
         for i in range(n):
-            for j in range(i+1):
+            for j in range(i + 1):
                 ij = self.kernel(x[i], x[j])
                 self.K[j][i] = ij
                 self.K[i][j] = ij
 
         return self.K
 
-
-
-    def train(self, x, d, C=None):
-        if self.gamma == 'auto':
-            self.gamma_value = 1 / len(x)
-        elif self.gamma == 'scale':
-            self.gamma_value = 1 / (len(x) * x.var())
-
-        # print("training with x={}, d={}".format(x,d))
-        if C is None:
-            C = self.C
+    def train(self, x, d):
         if len(x) == len(d):
             n = len(x)
         else:
             print("X and y must have same size! Got X:{}, y:{}".format(x.shape, d.shape))
             pass
+
+        if self.gamma == 'auto':
+            self.gamma_value = 1 / n
+        elif self.gamma == 'scale':
+            self.gamma_value = 1 / (n * x.var())
 
         K = self.compute_K(x)
         # print("Kernel:", K)
@@ -110,7 +94,7 @@ class SVM:
 
         return len(self.alpha), self.alpha, indexes
 
-    def solve_optimization(self, C, d, n, Q):
+    def solve_optimization(self, d, Q):
         """
 
         :param C: regularization parameter
@@ -130,9 +114,9 @@ class SVM:
         #     .solve(x0=np.full(n, 0))
 
         alpha = GVPM(f=lambda x: 0.5 * x.T @ Q @ x + q @ x,
-                                   df=lambda x: Q @ x + q,
-                                   A=A, b=b) \
-            .solve(x0=np.full(n, C/2))
+                     df=lambda x: Q @ x + q,
+                     A=A, b=b) \
+            .solve(x0=np.full(n, C / 2))
         return alpha
 
     def compute_out(self, x):

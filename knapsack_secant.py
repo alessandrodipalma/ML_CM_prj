@@ -5,7 +5,7 @@ from numpy.linalg import norm
 
 class dai_fletch_a1:
 
-    def __init__(self, l, u, a, b, A, c):
+    def __init__(self, l, u, a, b, A, c, verbose=False):
         """
         n = len(x)
         :param l: lower bounds
@@ -23,12 +23,14 @@ class dai_fletch_a1:
         self.d = np.diagonal(A)
         self.c = c
         self.xtory = []
+        self.verbose = verbose
 
         # print("solving knapsack with a = {} \n b = {} \n d = {}".format(self.a, self.b, self.d))
 
-    def _bracketing(self, lam=0, d_lam=2):
+    def _bracketing(self, lam=0, d_lam=2, eps=1e-6):
         r = self.compute_r(lam)
-        print("R = {}".format(r))
+        if self.verbose:
+            print("R = {}".format(r))
         if r < 0:
             lam_l = lam
             r_l = r
@@ -36,14 +38,16 @@ class dai_fletch_a1:
 
             r = self.compute_r(lam)
 
-            while r < 0:
+            while r < -eps:
                 lam_l = lam
                 r_l = r
 
                 s = max(r_l / r - 1, 0.1)
                 d_lam = d_lam + d_lam / s
                 lam = lam + d_lam
-                print("R = {}".format(r))
+
+                if self.verbose:
+                    print("R = {}".format(r))
                 r = self.compute_r(lam)
 
             lam_u = lam
@@ -55,29 +59,31 @@ class dai_fletch_a1:
 
             r = self.compute_r(lam)
 
-            while r > 0:
+            while r > eps:
                 lam_u = lam
                 r_u = r
                 s = max(r_u / r - 1, 0.1)
 
                 d_lam = d_lam + d_lam / s
                 lam = lam - d_lam
-                print("R = {}".format(r))
+
+                if self.verbose:
+                    print("R = {}".format(r))
+
                 r = self.compute_r(lam)
 
             lam_l = lam
             r_l = r
-
 
         return d_lam, lam_l, lam_u, r_l, r_u
 
     def _secant(self, lam_i=0, d_lam=2, eps=1e-2):
         d_lam, lam_l, lam_u, r_l, r_u = self._bracketing(lam_i, d_lam)
 
-        if r_l == 0.0 or r_u == 0.0: # it's a KT point
+        if r_l == 0.0 or r_u == 0.0:  # it's a KT point
             return
-
-        print(d_lam, lam_l, lam_u, r_l, r_u)
+        if self.verbose:
+            print(d_lam, lam_l, lam_u, r_l, r_u)
         s = 1 - r_l / r_u
         d_lam = d_lam / s
         lam = lam_u - d_lam

@@ -1,22 +1,21 @@
-import math
-from copy import deepcopy
+import time
 
 import numpy as np
-from numpy.linalg import norm, inv, matrix_power
-from scipy.optimize.linesearch import line_search
 from matplotlib import pyplot as plt
-from robinson import robinson
-from gradientprojection import armijo_wolfe_ls, backtracking_armijo_ls
+from numpy.linalg import norm, matrix_power
+
+from gradientprojection import backtracking_armijo_ls
 from knapsack_secant import dai_fletch_a1
+
 
 class GVPM:
     """
     Solves a quadratic problem with box constraints using the Generalized Variable Projection Method.
     """
 
-    def __init__(self, Q, q, left_constr, right_constr, y, b, a_min=1e-12, a_max=1e12,
-                 n_min=3,
-                 lam_low=1e-3, lam_upp=1):
+    def __init__(self, Q, q, left_constr, right_constr, y, b, a_min=1e-30, a_max=1e30,
+                 n_min=1,
+                 lam_low=1e-3, lam_upp=1, verbose=False):
         """
 
         :param Q: gram
@@ -35,12 +34,12 @@ class GVPM:
         self.Q_square = matrix_power(Q, 2)
         self.q = q
 
-        self.f = lambda x: 0.5 * ( x.T @ Q @ x ) + q @ x
+        self.f = lambda x: 0.5 * (x.T @ Q @ x) + q @ x
         self.df = lambda x: Q @ x + q
 
         self.left_constr = left_constr
         self.right_constr = right_constr
-        print("left={}\nright={}".format(left_constr,right_constr))
+
         self.n = self.Q.shape[1]
         self.a_min = a_min
         self.a_max = a_max
@@ -58,6 +57,8 @@ class GVPM:
 
         n_half = int(self.n / 2)
         self.Y = np.append(np.ones(n_half), -np.ones(n_half))
+
+        self.verbose = verbose
 
     def _update_rule_1(self, d):
         return (d.T @ d) / (d.T @ self.Q @ d)
@@ -93,7 +94,7 @@ class GVPM:
     #     l_new = self.lam_upp
     #     k = 0
     #     x = np.copy(x)
-    #     while norm(d) > 1e-3:
+    #     while norm(d) > 1e-6:
     #         l_new = (d.T @ d) / (d.T @ self.Q @ d)
     #         d = self._project(x - l_new * self.df(x)) - x
     #         x += float(l_new) * d
@@ -101,10 +102,10 @@ class GVPM:
     #
     #     if l_new is not None:
     #         l = l_new
-    #     else:
-    #         l = self.lam_upp
-    #     if math.isnan(l):
+    #     if l_new < self.lam_low:
     #         l = self.lam_low
+    #     if l_new > self.lam_upp:
+    #         l = self.lam_upp
     #     return l
     def line_search(self, x, d, l):
         l_new = backtracking_armijo_ls(self.f, self.df, x, d)
@@ -118,44 +119,60 @@ class GVPM:
 
         return l
 
-
     def _project(self, x):
-        # xp = robinson(self.left_constr, self.right_constr, self.y, self.b).solve(x)
+
         solver = dai_fletch_a1(self.left_constr, self.right_constr,
-                             self.y, self.b, np.identity(self.n), x)
-        xp = solver.solve(lam_i = 1, d_lam= 2)
+                               self.y, self.b, np.identity(self.n), x)
+        xp = solver.solve(lam_i=1, d_lam=2)
+
         # solver.plot_xtory()
         return xp
 
-
-
-    def solve(self, x0, max_iter=30, min_d=1e-3):
+    def solve(self, x0, max_iter=10, min_d=1e-3, x_opt=None, f_star=None):
         x = x0
         k = 0
         lam = 1
-        # P = np.identity(self.n) - 1
-        # print("g:{}\td={}\ta={}".format(norm(gradient), d,a))
-        print(x)
+
+        if self.verbose:
+            print(x)
+
         gradient = self.df(x)
+
         a = abs(1 / np.max(self._project(x - gradient) - x))
         gs = []
         ds = []
-        while k == 0 or (norm(d) > min_d and k<max_iter):
+        fs = []
+        gap = []
+        time_proj = 0.0
+        time_search = 0.0
+        while k == 0 or k < max_iter:
 
             # print("before\t gradient={}\tx={}\ta={}".format(norm(gradient), norm(x), a))
             # print("K={}\tx={}".format(k, norm(x)))
+            start_time_proj = time.time()
             d = self._project(x - a * gradient) - x
+
+            time_proj += time.time() - start_time_proj
+            print("\t\tElapsed time in projection", time_proj)
             # print("projected d ={}".format(norm(d)))
 
+            start_time_search = time.time()
             lam = self.line_search(x, d, lam)
+            time_search += time.time() - start_time_search
             # print("lambda ", lam)
-
+            x_prec = np.copy(x)
             x = x + lam * d
             gradient = self.df(x)
-            print("gradient {}\tx={}\td={}\tlambda={}".format(norm(gradient), norm(x), norm(d), lam))
+            if self.verbose:
+                print("gradient {}\tx={}\td={}\tlambda={}".format(norm(gradient), norm(x), norm(d), lam))
+
             if d.T @ self.Q @ d <= 0:
-                print("amax")
+                if self.verbose:
+                    print("amax")
                 a = self.a_max
+
+            elif norm(d) < min_d:
+                break
             else:
                 a_new = self._select_updating_rule(d, a, lam)
                 a = min(self.a_max, max(self.a_min, a_new))
@@ -163,18 +180,25 @@ class GVPM:
 
             gs.append(norm(gradient))
             ds.append(norm(d))
-        print("LAST K={}".format(k))
-        print(norm(x), "  ", norm(gradient))
+            if x_opt is not None:
+                gap.append(norm(x-x_opt))
+            if f_star is not None:
+                fs.append(norm((self.f(x)-f_star)/f_star))
 
-        # self.plot_gradient(gs, title="gradient norm descent")
-        # self.plot_gradient(ds, title="projected gradient norm descent", color='r')
+        if self.verbose:
+            print("LAST K={}".format(k))
+            print(norm(x), "  ", norm(gradient))
+
+        # self.plot_gradient(gs, ds, title="gradient norm descent")
         # input()
+        self.plot_gradient([fs],['gap'])
+
+        return x, d, time_proj, time_search
 
 
-        return x, d
 
-    def plot_gradient(self, gradient_history, title, color='b'):
-        plt.plot(range(0, len(gradient_history)), gradient_history, c=color)
-        plt.title(title)
+    def plot_gradient(self, histories, titles, colors=None):
+        for i,h in enumerate(histories):
+            plt.plot(range(0, len(h)), h, label=titles[i])
         plt.yscale('log')
         plt.show()
