@@ -4,7 +4,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from numpy.linalg import norm, matrix_power
 
-from gradientprojection import backtracking_armijo_ls
+from line_search import backtracking_armijo_ls
 from knapsack_secant import dai_fletch_a1
 
 
@@ -15,7 +15,7 @@ class GVPM:
 
     def __init__(self, Q, q, left_constr, right_constr, y, b, a_min=1e-30, a_max=1e30,
                  n_min=1,
-                 lam_low=1e-3, lam_upp=1, verbose=False):
+                 lam_low=1e-4, lam_upp=1, verbose=False):
         """
 
         :param Q: gram
@@ -119,6 +119,13 @@ class GVPM:
 
         return l
 
+    def exact_line_search(self, x, d, l):
+        lambda_d = - np.linalg.pinv(self.Q) @ self.q - x
+        ind = np.where((lambda_d != 0) & (d != 0))
+        lam = d[ind[0][0]] / lambda_d[ind[0][0]]
+        # print("EXACT LAMBDA ", lam)
+        return max(self.lam_low, min(self.lam_upp, abs(lam)))
+
     def _project(self, x):
 
         solver = dai_fletch_a1(self.left_constr, self.right_constr,
@@ -143,6 +150,8 @@ class GVPM:
         ds = []
         fs = []
         gap = []
+        rate = []
+        xs = []
         time_proj = 0.0
         time_search = 0.0
         while k == 0 or k < max_iter:
@@ -153,11 +162,11 @@ class GVPM:
             d = self._project(x - a * gradient) - x
 
             time_proj += time.time() - start_time_proj
-            print("\t\tElapsed time in projection", time_proj)
+            # print("\t\tElapsed time in projection", time_proj)
             # print("projected d ={}".format(norm(d)))
 
             start_time_search = time.time()
-            lam = self.line_search(x, d, lam)
+            lam = self.exact_line_search(x, d, lam)
             time_search += time.time() - start_time_search
             # print("lambda ", lam)
             x_prec = np.copy(x)
@@ -166,24 +175,29 @@ class GVPM:
             if self.verbose:
                 print("gradient {}\tx={}\td={}\tlambda={}".format(norm(gradient), norm(x), norm(d), lam))
 
-            if d.T @ self.Q @ d <= 0:
+            if norm(d) < min_d:
+                break
+            elif norm(x_prec - x) < min_d:
+                break
+            elif d.T @ self.Q @ d <= min_d:
                 if self.verbose:
                     print("amax")
                 a = self.a_max
-
-            elif norm(d) < min_d:
-                break
             else:
                 a_new = self._select_updating_rule(d, a, lam)
                 a = min(self.a_max, max(self.a_min, a_new))
+
+
+
             k += 1
 
             gs.append(norm(gradient))
             ds.append(norm(d))
-            if x_opt is not None:
-                gap.append(norm(x-x_opt))
+            xs.append(norm(x))
             if f_star is not None:
                 fs.append(norm((self.f(x)-f_star)/f_star))
+
+            rate.append(norm(x - x_opt))
 
         if self.verbose:
             print("LAST K={}".format(k))
@@ -191,14 +205,15 @@ class GVPM:
 
         # self.plot_gradient(gs, ds, title="gradient norm descent")
         # input()
-        self.plot_gradient([fs],['gap'])
-
+        # self.plot_gradient([fs],['gap'], title="f gap")
+        # self.plot_gradient([xs, ds], ['x norm', 'gradient norm' ],title='x norm')
         return x, d, time_proj, time_search
 
 
 
-    def plot_gradient(self, histories, titles, colors=None):
+    def plot_gradient(self, histories, labels,title="", colors=None):
         for i,h in enumerate(histories):
-            plt.plot(range(0, len(h)), h, label=titles[i])
+            plt.plot(range(0, len(h)), h, label=labels[i])
         plt.yscale('log')
+        plt.title(title)
         plt.show()

@@ -3,6 +3,7 @@ import numpy
 from joblib.numpy_pickle_utils import xrange
 
 from gvpm import GVPM
+from rosen import RosenGradientProjection
 from svm import SVM, np
 import cvxpy
 import cplex
@@ -70,7 +71,7 @@ class SVR(SVM):
         if self.solver == 'GVPM':
 
             alpha, gradient, proj_time, search_time = GVPM(G, q, l, u, y, e).solve(x0=np.zeros(2 * n), max_iter=100,
-                                                                                   min_d=1e-4, x_opt=alpha_opt, f_star = f_star)
+                                                                                   min_d=1e-3, x_opt=alpha_opt, f_star = f_star)
             elapsed_time = time.time() - start_time
 
             if elapsed_time>0:
@@ -83,6 +84,10 @@ class SVR(SVM):
             alpha, gradient = self.solve_with_cvxpy(2*n, G, q, self.C, y)
             # bias = -np.mean(gradient * y)
             bias = 0
+        elif self.solver == 'rosen':
+            alpha, gradient = RosenGradientProjection(G, q, l, u, y, e, lam_upp=5, lam_low=0.1).solve(x0=np.zeros(2 * n), max_iter=1000,
+                                                                                   min_d=1e-4, x_opt=alpha_opt, f_star = f_star)
+            bias = 0
         end_time = time.time() - start_time
         print("took {} to solve with {}".format(end_time, self.solver))
         # ind = np.where(np.logical_and(0 <= alpha, alpha <= C))
@@ -92,7 +97,7 @@ class SVR(SVM):
 
 
         print("bias={}".format(bias))
-        input()
+        # input()
         return alpha[:n] - alpha[n:], bias
 
     def compute_out(self, x):

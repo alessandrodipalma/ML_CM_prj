@@ -4,7 +4,8 @@ import numpy as np
 from numpy import array
 from numpy.linalg import inv, norm, pinv
 from scipy.optimize import line_search
-from gradientprojection import armijo_wolfe_ls
+from line_search import armijo_wolfe_ls
+
 
 class GradientProjection:
 
