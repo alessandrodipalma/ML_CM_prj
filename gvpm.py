@@ -15,7 +15,7 @@ class GVPM:
 
     def __init__(self, Q, q, left_constr, right_constr, y, b, a_min=1e-30, a_max=1e30,
                  n_min=1,
-                 lam_low=1e-4, lam_upp=1, verbose=False):
+                 lam_low=1e-8, lam_upp=1, verbose=False, proj_tol = 1e-4):
         """
 
         :param Q: gram
@@ -57,7 +57,7 @@ class GVPM:
 
         n_half = int(self.n / 2)
         self.Y = np.append(np.ones(n_half), -np.ones(n_half))
-
+        self.projection_tol = proj_tol
         self.verbose = verbose
 
     def _update_rule_1(self, d):
@@ -130,7 +130,7 @@ class GVPM:
 
         solver = dai_fletch_a1(self.left_constr, self.right_constr,
                                self.y, self.b, np.identity(self.n), x)
-        xp = solver.solve(lam_i=1, d_lam=2)
+        xp = solver.solve(lam_i=1, d_lam=2, eps=self.projection_tol)
 
         # solver.plot_xtory()
         return xp
@@ -150,8 +150,12 @@ class GVPM:
         ds = []
         fs = []
         gap = []
+        it_mu_rate = []
         rate = []
+        rate_norm = []
+        mu_rate = []
         xs = []
+        orders = []
         time_proj = 0.0
         time_search = 0.0
         while k == 0 or k < max_iter:
@@ -166,10 +170,13 @@ class GVPM:
             # print("projected d ={}".format(norm(d)))
 
             start_time_search = time.time()
-            lam = self.exact_line_search(x, d, lam)
+            lam = self.line_search(x, d, lam)
             time_search += time.time() - start_time_search
             # print("lambda ", lam)
+            if k > 0:
+                x_pp = np.copy(x_prec)
             x_prec = np.copy(x)
+
             x = x + lam * d
             gradient = self.df(x)
             if self.verbose:
@@ -177,9 +184,9 @@ class GVPM:
 
             if norm(d) < min_d:
                 break
-            elif norm(x_prec - x) < min_d:
+            if norm(x_prec - x) / norm(x) < min_d:
                 break
-            elif d.T @ self.Q @ d <= min_d:
+            if d.T @ self.Q @ d <= min_d:
                 if self.verbose:
                     print("amax")
                 a = self.a_max
@@ -189,31 +196,47 @@ class GVPM:
 
 
 
-            k += 1
-
             gs.append(norm(gradient))
             ds.append(norm(d))
             xs.append(norm(x))
-            if f_star is not None:
-                fs.append(norm((self.f(x)-f_star)/f_star))
 
-            rate.append(norm(x - x_opt))
+
+            rate.append(norm(x - x_prec))
+            rate_norm.append(rate[-1] / norm(x))
+
+            if f_star is not None:
+                fs.append(norm((self.f(x) - f_star) / f_star))
+            if x_opt is not None:
+                mu_rate.append(norm(x - x_opt) / norm(x_prec - x_opt))
+            if k > 0:
+                it_mu_rate.append(rate_norm[-1] / rate_norm[-2])
+            if k > 1:
+                orders.append(np.log(rate_norm[-1]/rate_norm[-2])/np.log(rate_norm[-2]/rate_norm[-3]))
+
+            k += 1
 
         if self.verbose:
             print("LAST K={}".format(k))
             print(norm(x), "  ", norm(gradient))
 
-        # self.plot_gradient(gs, ds, title="gradient norm descent")
+        self.plot_gradient([rate_norm], ['rate'], title="(x-x_prec)/norm(x)", scale='linear')
+        self.plot_gradient([rate], ['rate'], title="(x-x_prec)", scale='linear')
+        self.plot_gradient([orders], ['rate'], title="convergence order estimate = {}".format(np.mean(orders)), scale='linear')
+        self.plot_gradient([it_mu_rate, mu_rate], ["empirical", "real"], title="mu",
+                           scale='log')
+        if f_star is not None:
+            self.plot_gradient([fs], ['gap'], title="f gap")
+        if x_opt is not None:
+            self.plot_gradient([xs], ['x norm'], title='x norm', scale='linear')
         # input()
-        # self.plot_gradient([fs],['gap'], title="f gap")
-        # self.plot_gradient([xs, ds], ['x norm', 'gradient norm' ],title='x norm')
+
         return x, d, time_proj, time_search
 
-
-
-    def plot_gradient(self, histories, labels,title="", colors=None):
-        for i,h in enumerate(histories):
+    def plot_gradient(self, histories, labels, title="", scale='log'):
+        for i, h in enumerate(histories):
             plt.plot(range(0, len(h)), h, label=labels[i])
-        plt.yscale('log')
+        plt.yscale(scale)
+        plt.rcParams["figure.figsize"] = (10,5)
+        plt.legend()
         plt.title(title)
         plt.show()

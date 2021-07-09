@@ -9,8 +9,8 @@ from sklearn import svm, preprocessing
 from utils import plot_error, plot_sv_number
 
 np.random.seed(42)
-n_features = 30
-X, y = make_regression(n_samples=500, n_features=n_features)
+n_features = 50
+X, y = make_regression(n_samples=1000, n_features=n_features)
 
 X = preprocessing.StandardScaler().fit(X).transform(X)
 y = 2 * (y - min(y)) / (max(y) - min(y)) - 1
@@ -22,8 +22,10 @@ C = 1
 kernel = 'rbf'
 eps = 0.1
 gamma = 'scale'
+tol = 1e-4
+solver = 'GVPM'
 
-model = SVR(C=C, kernel=kernel, eps=eps, gamma=gamma, solver = 'GVPM')
+model = SVR(C=C, kernel=kernel, eps=eps, gamma=gamma, solver = solver, tol=tol, plot_gap=True)
 train_err = []
 test_err = []
 
@@ -34,7 +36,7 @@ model_sota = svm.SVR(C=C, kernel=kernel, epsilon=eps, gamma=gamma)
 train_err_sota = []
 test_err_sota = []
 
-batch_size = int(len(X_train) / 10)
+batch_size = int(len(X_train) / 1)
 
 print(batch_size)
 
@@ -62,7 +64,7 @@ for i in range(0, int(len(X) / batch_size)):
     # print("data: {}, support_vectors: {}, smallest: {}, greatest: {},".format(bs, n_sv, min(alphas), max(alphas), ))
     # print("data: {}, support_vectors: {}, smallest: {}, greatest: {}, ".format(bs, n_sv_sota, min(alphas), max(alphas), ))
     # input()
-plot_error(train_err, test_err, "mySVR {} C={} eps={}".format(kernel, C, eps))
+plot_error(train_err, test_err, "mySVR {} C={} eps={} tol={} solver={}".format(kernel, C, eps, tol, solver))
 # print(test_err)
 plot_error(train_err_sota, test_err_sota, "sklearn {} C={} eps={}".format(kernel, C, eps))
 # plot_sv_number(sv)

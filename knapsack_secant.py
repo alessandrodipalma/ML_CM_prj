@@ -124,8 +124,8 @@ class dai_fletch_a1:
 
         return
 
-    def solve(self, lam_i=0, d_lam=2):
-        self._secant(lam_i, d_lam)
+    def solve(self, lam_i=0, d_lam=2, eps=1e-2):
+        self._secant(lam_i, d_lam, eps=eps)
         return self.x
 
     def compute_h(self, lam):
