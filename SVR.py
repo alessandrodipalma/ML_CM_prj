@@ -76,8 +76,8 @@ class SVR(SVM):
 
         if self.solver == 'GVPM':
 
-            alpha, gradient, proj_time, search_time = GVPM(G, q, l, u, y, e).solve(x0=np.zeros(2 * n), max_iter=500,
-                                                                                   min_d=self.tol, x_opt=alpha_opt,
+            alpha, gradient, proj_time, search_time = GVPM(G, q, l, u, y, e, n_min=1).solve(x0=np.zeros(2 * n), max_iter=500,
+                                                                                   tol=self.tol, x_opt=alpha_opt,
                                                                                    f_star=f_star)
             elapsed_time = time.time() - start_time
 

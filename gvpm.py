@@ -13,9 +13,9 @@ class GVPM:
     Solves a quadratic problem with box constraints using the Generalized Variable Projection Method.
     """
 
-    def __init__(self, Q, q, left_constr, right_constr, y, b, a_min=1e-30, a_max=1e30,
+    def __init__(self, Q, q, left_constr, right_constr, y, b, a_min=1e-8, a_max=1e8,
                  n_min=1,
-                 lam_low=1e-8, lam_upp=1, verbose=False, proj_tol = 1e-4):
+                 lam_low=1e-3, lam_upp=1, verbose=False, proj_tol=1e-8, plots=False):
         """
 
         :param Q: gram
@@ -59,6 +59,8 @@ class GVPM:
         self.Y = np.append(np.ones(n_half), -np.ones(n_half))
         self.projection_tol = proj_tol
         self.verbose = verbose
+
+        self.plots = plots
 
     def _update_rule_1(self, d):
         return (d.T @ d) / (d.T @ self.Q @ d)
@@ -135,7 +137,7 @@ class GVPM:
         # solver.plot_xtory()
         return xp
 
-    def solve(self, x0, max_iter=10, min_d=1e-3, x_opt=None, f_star=None):
+    def solve(self, x0, max_iter=10, tol=1e-3, x_opt=None, f_star=None):
         x = x0
         k = 0
         lam = 1
@@ -149,6 +151,7 @@ class GVPM:
         gs = []
         ds = []
         fs = []
+        fxs = []
         gap = []
         it_mu_rate = []
         rate = []
@@ -158,6 +161,8 @@ class GVPM:
         orders = []
         time_proj = 0.0
         time_search = 0.0
+        fxs.append(self.f(x))
+
         while k == 0 or k < max_iter:
 
             # print("before\t gradient={}\tx={}\ta={}".format(norm(gradient), norm(x), a))
@@ -173,20 +178,27 @@ class GVPM:
             lam = self.line_search(x, d, lam)
             time_search += time.time() - start_time_search
             # print("lambda ", lam)
-            if k > 0:
-                x_pp = np.copy(x_prec)
+
             x_prec = np.copy(x)
+            fxs.append(self.f(x))
 
             x = x + lam * d
             gradient = self.df(x)
             if self.verbose:
                 print("gradient {}\tx={}\td={}\tlambda={}".format(norm(gradient), norm(x), norm(d), lam))
 
-            if norm(d) < min_d:
+            gs.append(norm(gradient))
+            ds.append(norm(d))
+            xs.append(norm(x))
+            rate.append(norm(x - x_prec))
+            rate_norm.append(rate[-1] / norm(x))
+
+            if abs((fxs[-1] - fxs[-2])) / abs(fxs[-1]) < tol:
+                print("Optimal solution found")
                 break
-            if norm(x_prec - x) / norm(x) < min_d:
+            if rate_norm[-1] < tol:
                 break
-            if d.T @ self.Q @ d <= min_d:
+            if d.T @ self.Q @ d <= tol:
                 if self.verbose:
                     print("amax")
                 a = self.a_max
@@ -196,47 +208,41 @@ class GVPM:
 
 
 
-            gs.append(norm(gradient))
-            ds.append(norm(d))
-            xs.append(norm(x))
-
-
-            rate.append(norm(x - x_prec))
-            rate_norm.append(rate[-1] / norm(x))
-
             if f_star is not None:
-                fs.append(norm((self.f(x) - f_star) / f_star))
+                fs.append(abs((fxs[-1] - f_star) / f_star))
             if x_opt is not None:
                 mu_rate.append(norm(x - x_opt) / norm(x_prec - x_opt))
             if k > 0:
                 it_mu_rate.append(rate_norm[-1] / rate_norm[-2])
-            if k > 1:
-                orders.append(np.log(rate_norm[-1]/rate_norm[-2])/np.log(rate_norm[-2]/rate_norm[-3]))
+            # if k > 1:
+            #     orders.append(np.log(rate_norm[-1]/rate_norm[-2])/np.log(rate_norm[-2]/rate_norm[-3]))
 
             k += 1
 
         if self.verbose:
             print("LAST K={}".format(k))
             print(norm(x), "  ", norm(gradient))
-
-        self.plot_gradient([rate_norm], ['rate'], title="(x-x_prec)/norm(x)", scale='linear')
-        self.plot_gradient([rate], ['rate'], title="(x-x_prec)", scale='linear')
-        self.plot_gradient([orders], ['rate'], title="convergence order estimate = {}".format(np.mean(orders)), scale='linear')
-        self.plot_gradient([it_mu_rate, mu_rate], ["empirical", "real"], title="mu",
-                           scale='log')
-        if f_star is not None:
-            self.plot_gradient([fs], ['gap'], title="f gap")
-        if x_opt is not None:
-            self.plot_gradient([xs], ['x norm'], title='x norm', scale='linear')
-        # input()
+        if self.plots:
+            self.plot_gradient([ds], ['proj gadient norm'], title="projected gradient norm", scale='log')
+            self.plot_gradient([rate_norm], ['rate'], title="(x-x_prec)/norm(x)", scale='linear')
+            # self.plot_gradient([rate], ['rate'], title="(x-x_prec)", scale='linear')
+            # self.plot_gradient([orders], ['rate'], title="convergence order estimate = {}".format(np.mean(orders)), scale='linear')
+            self.plot_gradient([it_mu_rate, mu_rate], ["empirical", "real"], title="mu", scale='log')
+            self.plot_gradient([mu_rate], ["real"], title="convergence rate",
+                               scale='linear', legend=False)
+            if f_star is not None:
+                self.plot_gradient([fs], ['gap'], title="f gap    f* = {}    f_opt = {}".format(f_star, fxs[-1]))
+            # self.plot_gradient([xs], ['x norm'], title='x norm', scale='linear')
+            # input()
 
         return x, d, time_proj, time_search
 
-    def plot_gradient(self, histories, labels, title="", scale='log'):
+    def plot_gradient(self, histories, labels, title="", scale='log', legend=True):
         for i, h in enumerate(histories):
             plt.plot(range(0, len(h)), h, label=labels[i])
         plt.yscale(scale)
-        plt.rcParams["figure.figsize"] = (10,5)
-        plt.legend()
+        plt.rcParams["figure.figsize"] = (10, 5)
+        if legend:
+            plt.legend()
         plt.title(title)
         plt.show()
