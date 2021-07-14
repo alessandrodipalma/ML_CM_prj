@@ -22,10 +22,10 @@ C = 1
 kernel = 'rbf'
 eps = 0.1
 gamma = 'scale'
-tol = 1e-6
+tol = 1e-2
 solver = 'GVPM'
 
-model = SVR(C=C, kernel=kernel, eps=eps, gamma=gamma, solver = solver, tol=tol, plot_gap=True)
+model = SVR(C=C, kernel=kernel, eps=eps, gamma=gamma, solver = solver, tol=tol, plot_gap=False)
 train_err = []
 test_err = []
 

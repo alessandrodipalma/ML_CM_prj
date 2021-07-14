@@ -8,12 +8,17 @@ from line_search import backtracking_armijo_ls
 from knapsack_secant import dai_fletch_a1
 
 
+
 class GVPM:
     """
     Solves a quadratic problem with box constraints using the Generalized Variable Projection Method.
     """
 
-    def __init__(self, Q, q, left_constr, right_constr, y, b, a_min=1e-8, a_max=1e8,
+    LS_EXACT = 'exact'
+    LS_BACKTRACK = 'backtraking'
+    STEPSIZE_BB = 'bb'
+
+    def __init__(self, Q, q, left_constr, right_constr, y, b, ls=LS_EXACT, a_min=1e-30, a_max=1e30,
                  n_min=1,
                  lam_low=1e-3, lam_upp=1, verbose=False, proj_tol=1e-8, plots=False):
         """
@@ -29,6 +34,7 @@ class GVPM:
         :param n_min:
         :param lam_low:
         :param lam_upp:
+
         """
         self.Q = Q
         self.Q_square = matrix_power(Q, 2)
@@ -54,6 +60,8 @@ class GVPM:
         self.lam_low = lam_low
         self.lam_upp = lam_upp
         self.rule_iter = 1
+
+        self.ls = ls
 
         n_half = int(self.n / 2)
         self.Y = np.append(np.ones(n_half), -np.ones(n_half))
@@ -110,26 +118,21 @@ class GVPM:
     #         l = self.lam_upp
     #     return l
     def line_search(self, x, d, l):
-        l_new = backtracking_armijo_ls(self.f, self.df, x, d)
-        # print("lambda_opt={}".format(l_new))
-        if l_new is not None:
-            l = l_new
-        if l_new < self.lam_low:
-            l = self.lam_low
-        if l_new > self.lam_upp:
-            l = self.lam_upp
+        if self.ls == self.LS_EXACT:
+            l = abs((d.T @ d) / (d.T @ self.Q @ d))
+        elif self.ls == self.LS_BACKTRACK:
+            l_new = backtracking_armijo_ls(self.f, self.df, x, d)
+            # print("lambda_opt={}".format(l_new))
+            if l_new is not None:
+                l = l_new
+            if l_new < self.lam_low:
+                l = self.lam_low
+            if l_new > self.lam_upp:
+                l = self.lam_upp
 
         return l
 
-    def exact_line_search(self, x, d, l):
-        lambda_d = - np.linalg.pinv(self.Q) @ self.q - x
-        ind = np.where((lambda_d != 0) & (d != 0))
-        lam = d[ind[0][0]] / lambda_d[ind[0][0]]
-        # print("EXACT LAMBDA ", lam)
-        return max(self.lam_low, min(self.lam_upp, abs(lam)))
-
     def _project(self, x):
-
         solver = dai_fletch_a1(self.left_constr, self.right_constr,
                                self.y, self.b, np.identity(self.n), x)
         xp = solver.solve(lam_i=1, d_lam=2, eps=self.projection_tol)
@@ -147,7 +150,10 @@ class GVPM:
 
         gradient = self.df(x)
 
-        a = abs(1 / np.max(self._project(x - gradient) - x))
+        if self.ls == self.LS_EXACT:
+            a = 1
+        else:
+            a = abs(1 / np.max(self._project(x - gradient) - x))
         gs = []
         ds = []
         fs = []
@@ -176,6 +182,7 @@ class GVPM:
 
             start_time_search = time.time()
             lam = self.line_search(x, d, lam)
+
             time_search += time.time() - start_time_search
             # print("lambda ", lam)
 
@@ -196,15 +203,18 @@ class GVPM:
             if abs((fxs[-1] - fxs[-2])) / abs(fxs[-1]) < tol:
                 print("Optimal solution found")
                 break
+
             if rate_norm[-1] < tol:
                 break
-            if d.T @ self.Q @ d <= tol:
-                if self.verbose:
-                    print("amax")
-                a = self.a_max
-            else:
-                a_new = self._select_updating_rule(d, a, lam)
-                a = min(self.a_max, max(self.a_min, a_new))
+
+            if self.ls != self.LS_EXACT:
+                if d.T @ self.Q @ d <= tol:
+                    if self.verbose:
+                        print("amax")
+                    a = self.a_max
+                else:
+                    a_new = self._select_updating_rule(d, a, lam)
+                    a = min(self.a_max, max(self.a_min, a_new))
 
 
 
@@ -223,17 +233,17 @@ class GVPM:
             print("LAST K={}".format(k))
             print(norm(x), "  ", norm(gradient))
         if self.plots:
-            self.plot_gradient([ds], ['proj gadient norm'], title="projected gradient norm", scale='log')
-            self.plot_gradient([rate_norm], ['rate'], title="(x-x_prec)/norm(x)", scale='linear')
+            # self.plot_gradient([ds], ['proj gadient norm'], title="projected gradient norm", scale='log')
+            # self.plot_gradient([rate_norm], ['rate'], title="(x-x_prec)/norm(x)", scale='linear')
             # self.plot_gradient([rate], ['rate'], title="(x-x_prec)", scale='linear')
             # self.plot_gradient([orders], ['rate'], title="convergence order estimate = {}".format(np.mean(orders)), scale='linear')
-            self.plot_gradient([it_mu_rate, mu_rate], ["empirical", "real"], title="mu", scale='log')
-            self.plot_gradient([mu_rate], ["real"], title="convergence rate",
-                               scale='linear', legend=False)
+            # self.plot_gradient([it_mu_rate, mu_rate], ["empirical", "real"], title="mu", scale='log')
+            # self.plot_gradient([mu_rate], ["real"], title="convergence rate",
+            #                    scale='linear', legend=False)
             if f_star is not None:
                 self.plot_gradient([fs], ['gap'], title="f gap    f* = {}    f_opt = {}".format(f_star, fxs[-1]))
             # self.plot_gradient([xs], ['x norm'], title='x norm', scale='linear')
-            # input()
+        # input()
 
         return x, d, time_proj, time_search
 
