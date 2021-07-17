@@ -2,10 +2,12 @@ from sklearn.datasets import make_regression
 from sklearn.model_selection import train_test_split
 import numpy as np
 
+from Cplex_Solver import CplexSolver
 from SVR import SVR
 from sklearn.metrics import mean_squared_error as mse, mean_absolute_error as mae
 from sklearn import svm, preprocessing
 
+from gvpm import GVPM
 from utils import plot_error, plot_sv_number
 
 np.random.seed(42)
@@ -22,10 +24,14 @@ C = 1
 kernel = 'rbf'
 eps = 0.1
 gamma = 'scale'
-tol = 1e-2
-solver = 'GVPM'
+tol = 1e-4
 
-model = SVR(C=C, kernel=kernel, eps=eps, gamma=gamma, solver = solver, tol=tol, plot_gap=False)
+ls = GVPM.LS_BACKTRACK
+
+solver = GVPM(ls=ls, n_min=2, tol=tol)
+model = SVR(solver = solver,
+            exact_solver=CplexSolver(tol=tol),
+            C=C, kernel=kernel, eps=eps, gamma=gamma)
 train_err = []
 test_err = []
 

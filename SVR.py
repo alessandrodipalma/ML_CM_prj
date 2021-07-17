@@ -4,6 +4,7 @@ from joblib.numpy_pickle_utils import xrange
 
 from gvpm import GVPM
 from rosen import RosenGradientProjection
+from solver import Solver
 from svm import SVM, np
 import cvxpy
 import cplex
@@ -11,12 +12,11 @@ import cplex
 
 class SVR(SVM):
 
-    def __init__(self, kernel='rbf', C=1, eps=0.001, gamma='scale', degree=3, solver='GVPM', tol=1e-3, plot_gap=False):
+    def __init__(self, solver: Solver, exact_solver=None, kernel='rbf', C=1, eps=0.001, gamma='scale', degree=3):
         super().__init__(kernel, C, gamma, degree)
         self.solver = solver
+        self.exact_solver = exact_solver
         self.eps = eps
-        self.tol = tol
-        self.plot_gap = plot_gap
 
     def train(self, x, d):
         if len(x) == len(d):
@@ -68,41 +68,19 @@ class SVR(SVM):
         e = np.full((1, 1), 0.)
 
         f_star = alpha_opt = None
-        if self.plot_gap is True:
-            alpha_opt, f_star, gradient = self.solve_with_cvxpy(2 * n, G, q, self.C, y, tol=self.tol)
+        if self.exact_solver is not None:
+            self.exact_solver.define_quad_objective(G, q, l, u, y, e)
+            alpha_opt, f_star, gradient = self.exact_solver.solve(x0=np.zeros(2 * n), x_opt=alpha_opt, f_opt=f_star)
 
+        self.solver.define_quad_objective(G, q, l, u, y, e)
         start_time = time.time()
-
-        if self.solver == 'GVPM':
-
-            alpha, gradient, proj_time, search_time = GVPM(G, q, l, u, y, e, n_min=1, plots=self.plot_gap, ls=GVPM.LS_EXACT) \
-                .solve(x0=np.zeros(2 * n), max_iter=100, tol=self.tol, x_opt=alpha_opt, f_star=f_star)
-            elapsed_time = time.time() - start_time
-
-            if elapsed_time > 0:
-                print("Elapsed time in GVPM {}\t{} % in projecting\t{} % in ls".format(elapsed_time,
-                                                                                       proj_time * 100 / elapsed_time,
-                                                                                       search_time * 100 / elapsed_time))
-            print(alpha_opt)
-            print(alpha)
-            # bias = -np.mean(gradient * y)
-            bias = 0
-        elif self.solver == 'CPLEX':
-            alpha, f_opt, gradient = self.solve_with_cvxpy(2 * n, G, q, self.C, y, tol=self.tol)
-            # bias = -np.mean(gradient * y)
-            bias = 0
-        elif self.solver == 'rosen':
-            alpha, gradient = RosenGradientProjection(G, q, l, u, y, e, lam_upp=1, lam_low=0.1).solve(
-                x0=np.zeros(2 * n), max_iter=1000,
-                min_d=1e-4, x_opt=alpha_opt, f_star=f_star)
-            bias = 0
+        print(alpha_opt, f_star)
+        alpha, f_star, gradient = self.solver.solve(x0=np.zeros(2 * n), x_opt=alpha_opt, f_opt=f_star)
         end_time = time.time() - start_time
-        print("took {} to solve with {}".format(end_time, self.solver))
-        # ind = np.where(np.logical_and(0 <= alpha, alpha <= C))
-        # print("ALPHAS", alpha)
-        # print("sum: {}".format(np.sum(alpha * y)))
-        # print(ind)
 
+        bias = 0
+
+        print("took {} to solve".format(end_time))
         print("bias={}".format(bias))
         # input()
         return alpha[:n] - alpha[n:], bias
@@ -114,15 +92,3 @@ class SVR(SVM):
 
     def predict(self, x):
         return np.array(list(map(self.compute_out, x)))
-
-    def solve_with_cvxpy(self, n, G, q, C, y, tol):
-        x = cvxpy.Variable(n)
-        # x.value = x0
-        objective = cvxpy.Minimize((1 / 2) * cvxpy.quad_form(x, G) + q.T @ x)
-        constraints = [x >= 0, x <= C, y.T @ x == 0]
-        problem = cvxpy.Problem(objective, constraints)
-        problem.solve(verbose=True, solver="CPLEX", cplex_params={
-            "barrier.convergetol": tol
-        })
-        # problem.backward()
-        return numpy.array(x.value), problem.value, x.gradient
