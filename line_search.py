@@ -1,18 +1,19 @@
 import numpy as np
 
 
-def backtracking_armijo_ls(f, df, x, d, m1=0.9, tau=0.5):
+def backtracking_armijo_ls(f, df, x, d, m1=0.9, tau=0.5, alpha_min=1e-4):
     phi = lambda a: f(x + a * d)
     d_phi = lambda a: d @ df(x + a * d)
     alpha = 1
     phi0 = phi(0)
     d_phi0 = d_phi(0)
-
+    it = 0
     # print("phi(alpha)={}\n(phi0 + m1 * alpha * d_phi0)={}".format(phi(alpha), (phi0 + m1 * alpha * d_phi0)))
-    while phi(alpha) > (phi0 + m1 * alpha * d_phi0):
+    while phi(alpha) > (phi0 + m1 * alpha * d_phi0) and alpha > alpha_min:
         alpha = tau * alpha
+        it += 1
 
-    return alpha
+    return alpha, it
 
 
 def armijo_wolfe_ls(f: callable, df: callable, x, d, a_max, m1=0.1, m2=0.9, eps=1e-16, max_iter=1000, tau=0.1):

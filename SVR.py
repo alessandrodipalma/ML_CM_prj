@@ -1,13 +1,6 @@
 import time
-import numpy
-from joblib.numpy_pickle_utils import xrange
-
-from gvpm import GVPM
-from rosen import RosenGradientProjection
 from solver import Solver
 from svm import SVM, np
-import cvxpy
-import cplex
 
 
 class SVR(SVM):
@@ -17,6 +10,7 @@ class SVR(SVM):
         self.solver = solver
         self.exact_solver = exact_solver
         self.eps = eps
+        self.bias = 0
 
     def train(self, x, d):
         if len(x) == len(d):
@@ -32,19 +26,30 @@ class SVR(SVM):
         # print("training with x={}, d={}".format(x,d))
 
         K = self.compute_K(x)
-        alpha, self.bias = self.solve_optimization(d, K)
-        # print("COMPUTED MULTIPLIERS: {}".format(alpha))
-        # self.gradient = Q @ alpha + d
+        alpha = self.solve_optimization(d, K, x)
+        multipliers = alpha[:n] - alpha[n:]
 
-        indexes = np.where(abs(alpha) > (self.C * 1e-6))[0]
+        indexes = np.where(abs(multipliers) > (self.C * 1e-6))[0]
         print("number of sv: ", len(indexes), )
         self.x = x[indexes]
-        self.support_alpha = alpha[indexes]
+        a = alpha[indexes]
+        a_star = alpha[indexes + n]
+        self.support_alpha = multipliers[indexes]
         self.d = d[indexes]
-        # input()
+
+        self.bias = 0
+        # estimates = np.full(len(self.x), -self.eps) + self.d - self.predict(self.x)
+        # left = np.max(estimates[np.where(np.logical_or(a <= self.C, a_star <= self.solver.tol))])
+        # right = np.min(estimates[np.where(np.logical_or(a >= self.solver.tol, a_star <= self.C))])
+        # self.bias = (left+right)/2
+        print(self.bias)
+
         return len(self.support_alpha), self.support_alpha, indexes
 
-    def solve_optimization(self, d, Q):
+    # def comput_bias(self):
+    #     i0 = np.where(np.)
+
+    def solve_optimization(self, d, Q, x):
         """
         :param d: desired outputs
         :param n:
@@ -74,16 +79,12 @@ class SVR(SVM):
 
         self.solver.define_quad_objective(G, q, l, u, y, e)
         start_time = time.time()
-        print(alpha_opt, f_star)
         alpha, f_star, gradient = self.solver.solve(x0=np.zeros(2 * n), x_opt=alpha_opt, f_opt=f_star)
         end_time = time.time() - start_time
 
-        bias = 0
-
         print("took {} to solve".format(end_time))
-        print("bias={}".format(bias))
         # input()
-        return alpha[:n] - alpha[n:], bias
+        return alpha
 
     def compute_out(self, x):
         f = lambda i: self.support_alpha[i] * self.kernel(x, self.x[i]) + self.bias

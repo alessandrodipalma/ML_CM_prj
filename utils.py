@@ -4,6 +4,7 @@ def plot_error(train, test, title=""):
     plt.plot(range(0, len(test)), test, c='r', label='test')
     plt.plot(range(0, len(train)), train, c='b', label='train')
     plt.title(title)
+    plt.yscale('linear')
     plt.legend(loc='upper right')
     # plt.yscale('log')
     plt.show()

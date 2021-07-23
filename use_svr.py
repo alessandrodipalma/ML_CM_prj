@@ -2,6 +2,7 @@ from sklearn.datasets import make_regression
 from sklearn.model_selection import train_test_split
 import numpy as np
 
+import load_cup_ds
 from Cplex_Solver import CplexSolver
 from SVR import SVR
 from sklearn.metrics import mean_squared_error as mse, mean_absolute_error as mae
@@ -11,14 +12,14 @@ from gvpm import GVPM
 from utils import plot_error, plot_sv_number
 
 np.random.seed(42)
-n_features = 100
-X, y = make_regression(n_samples=1000, n_features=n_features)
+n_features = 5
+X, y = make_regression(n_samples=500, n_features=n_features)
 
 X = preprocessing.StandardScaler().fit(X).transform(X)
 y = 2 * (y - min(y)) / (max(y) - min(y)) - 1
 
 print(y)
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33)
 
 C = 1
 kernel = 'rbf'
@@ -28,9 +29,9 @@ tol = 1e-4
 
 ls = GVPM.LS_BACKTRACK
 
-solver = GVPM(ls=ls, n_min=2, tol=tol)
+solver = GVPM(ls=ls, n_min=2, tol=tol, lam_low=1e-3, plots=False, proj_tol=1e-3)
 model = SVR(solver = solver,
-            exact_solver=CplexSolver(tol=tol),
+            # exact_solver=CplexSolver(tol=tol, verbose=False),
             C=C, kernel=kernel, eps=eps, gamma=gamma)
 train_err = []
 test_err = []
@@ -72,7 +73,7 @@ for i in range(0, int(len(X) / batch_size)):
     # input()
 
 plot_error(train_err, test_err, "mySVR {} C={} eps={} tol={} solver={}".format(kernel, C, eps, tol, solver))
-# print(test_err)
 plot_error(train_err_sota, test_err_sota, "sklearn {} C={} eps={}".format(kernel, C, eps))
+# print(test_err)
 # plot_sv_number(sv)
 # plot_sv_number(sv_sota)
