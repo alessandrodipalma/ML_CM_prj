@@ -258,6 +258,7 @@ class GVPM(Solver):
 
         self.stats = {'it': k, 'it_ls': it_ls, 'time_tot': end_time, 'time_ls': time_search, 'time_proj': time_proj}
         self.f_gap_history = f_gaps
+        self.rate_history = rate_norm
         self.x_history = xs
 
         return x, fxs[-1], d

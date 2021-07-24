@@ -84,12 +84,5 @@ print(tabulate([r.values() for r in table], table[0].keys(), tablefmt='fancy_gri
 
 
 
-"""
-How the range [a_min, a_max] affects convergence
-ranges: +- 1e-2 , -+ 1e-6 , +- 1e-12
-"""
 
-"""
-How n_min affects convergence stability
-n values: 0,1,2,4,8
-"""
+
