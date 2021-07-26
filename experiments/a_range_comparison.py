@@ -41,7 +41,7 @@ for i, d in enumerate(feature_samples_dict):
     eps = 0.1
     gamma = 'scale'
     tol = 1e-3
-    ls = GVPM.LineSearches.BACKTRACK
+    ls = GVPM.LineSearches.EXACT
 
     row = {'features': d['features'], 'samples': d['samples']}
     histories = {}
@@ -81,7 +81,7 @@ for i, d in enumerate(feature_samples_dict):
 
     table.append(row)
 
-plt.savefig(out_dir + "rate.png")
-with open(out_dir + "table.txt", "w", encoding="utf-8") as out_file:
+plt.savefig(out_dir + "rate_exact_ls.png")
+with open(out_dir + "table_exact_ls.txt", "w", encoding="utf-8") as out_file:
     out_file.write(tabulate([r.values() for r in table], table[0].keys(), tablefmt='latex'))
 
