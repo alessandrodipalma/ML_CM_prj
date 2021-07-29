@@ -23,6 +23,12 @@ class GVPM(Solver):
 
         values = [EXACT, BACKTRACK]
 
+    class StoppingRules:
+        x = 'x'
+        gradient = 'd'
+        relative_gap = 'f'
+        values = [x,gradient,relative_gap]
+
     class Plots:
         GAP = 'gap'
         X_NORM = 'x_norm'
@@ -35,7 +41,7 @@ class GVPM(Solver):
 
     def __init__(self, ls=LineSearches.EXACT, a_min=1e-5, a_max=1e5, n_min=3, lam_low=1e-3, lam_upp=1, max_iter=100,
                  tol=1e-3,
-                 verbose=False, proj_tol=1e-8, plots=True, fixed_lambda=None, fixed_alpha=None):
+                 verbose=False, proj_tol=1e-8, plots=True, fixed_lambda=None, fixed_alpha=None, stopping_rule=StoppingRules.gradient):
         """
 
         :param a_min:
@@ -62,6 +68,8 @@ class GVPM(Solver):
         self.plots = plots
         self.fixed_lambda = fixed_lambda
         self.fixed_alpha = fixed_alpha
+
+        self.stopping_rule = stopping_rule
 
     def _update_rule_1(self, d):
         return (d.T @ d) / (d.T @ self.Q @ d)
@@ -166,6 +174,7 @@ class GVPM(Solver):
 
         time_proj = 0.0
         time_search = 0.0
+        self.checkpoints = {}
 
         # convergence rate constants
         # tau = 1e-30
@@ -177,6 +186,17 @@ class GVPM(Solver):
 
         it_ls = 0
 
+        if self.stopping_rule == 'x':
+            stop = lambda: k > 1 and rate_norm[-1] < self.tol
+        elif self.stopping_rule == 'f':
+            stop = lambda: k > 2 and (fxs[-1] - fxs[-3]) / fxs[-1] < self.tol
+        elif self.stopping_rule == 'd':
+            stop = lambda: ds[-1] < self.tol
+
+
+        tols = [1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8]
+        tol_index = 0
+        self.tol = tols[tol_index]
         while k < self.max_iter:
 
             # print("before\t gradient={}\tx={}\ta={}".format(norm(gradient), norm(x), a))
@@ -231,12 +251,15 @@ class GVPM(Solver):
                     it_mu_rate.append(rate_norm[-1] / rate_norm[-2])
 
             # Stopping criterions
-            # if k > 1 and rate_norm[-1] < self.tol:
-            # if k > 2 and (fxs[-1] - fxs[-3])/fxs[-1] < self.tol:
-            if ds[-1] < self.tol:
-                if self.verbose:
+
+            if stop():
+                self.checkpoints[self.tol] = {'it': k, 'gap':f_gaps[-1]}
+                tol_index += 1
+                if tol_index > len(tols) -1 :
                     print("Optimal solution found")
-                break
+                    break
+                self.tol = tols[tol_index]
+
 
             # Update stepsize
             if self.fixed_alpha is None:
@@ -273,7 +296,7 @@ class GVPM(Solver):
         self.f_gap_history = f_gaps
         self.rate_history = rate_norm
         self.x_history = xs
-
+        self.cond = np.linalg.cond(self.Q)
         return x, fxs[-1], d
 
     def plot_gradient(self, histories, labels, title="", scale='log', legend=True):
