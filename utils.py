@@ -20,14 +20,14 @@ def plot_sv_number(sv):
     plt.show()
 
 
-def generate_regression_from_feature_sample_dict(feature_samples_dict, n_problems):
+def generate_regression_from_feature_sample_dict(feature_samples_dict, n_problems, fixed_rs=None):
     all_problems=[]
     for i, d in enumerate(feature_samples_dict):
         problems = []
         for j in range(n_problems):
-            X, y = make_regression(n_samples=d['samples'], n_features=d['features'])
+            X, y = make_regression(n_samples=d['samples'], n_features=d['features'], random_state=fixed_rs)
             X = preprocessing.StandardScaler().fit(X).transform(X)
             y = 2 * (y - min(y)) / (max(y) - min(y)) - 1
-            problems.append(train_test_split(X, y, test_size=0.33))
+            problems.append((X, y))
         all_problems.append(problems)
     return all_problems

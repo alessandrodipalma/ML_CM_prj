@@ -16,9 +16,9 @@ from gvpm import GVPM
 feature_samples_dict = [{'features': 10, 'samples': 200},
                         {'features': 50, 'samples': 200},
                         {'features': 100, 'samples': 100},
-                        {'features': 100, 'samples': 500},
-                        {'features': 200, 'samples': 500},
-                        {'features': 300, 'samples': 1000},
+                        # {'features': 100, 'samples': 500},
+                        # {'features': 200, 'samples': 500},
+                        # {'features': 300, 'samples': 1000},
                         ]
 
 out_dir = "plots/a_range/"
@@ -32,7 +32,7 @@ cols = 3
 fig, axs = plt.subplots(2,cols)
 plt.yscale('log')
 
-n_problems = 10
+n_problems = 1
 all_problems = generate_regression_from_feature_sample_dict(feature_samples_dict, n_problems)
 
 for i, d in enumerate(feature_samples_dict):
@@ -41,7 +41,7 @@ for i, d in enumerate(feature_samples_dict):
     eps = 0.1
     gamma = 'scale'
     tol = 1e-3
-    ls = GVPM.LineSearches.EXACT
+    ls = GVPM.LineSearches.BACKTRACK
 
     row = {'features': d['features'], 'samples': d['samples']}
     histories = {}
@@ -73,15 +73,16 @@ for i, d in enumerate(feature_samples_dict):
         row["{} {} time".format(ls, a)] = time_spent / n_problems
 
 
-        plot.plot(np.arange(len(solver.rate_history)), solver.rate_history, label='a +-, {} ls'.format(a, ls))
-    plot.axhline(y=1, color='r', linestyle='-')
-    plot.set_title(d)
+        plot.plot(np.arange(len(solver.f_gap_history)), solver.f_gap_history, label='a +-, {} ls'.format(a, ls))
+    # plot.axhline(y=1, color='r', linestyle='-')
+    plot.set_title("{} features, {} samples".format(d["features"], d["samples"]))
     plot.legend()
     plot.set_yscale('log')
 
     table.append(row)
 
-plt.savefig(out_dir + "rate_exact_ls.png")
-with open(out_dir + "table_exact_ls.txt", "w", encoding="utf-8") as out_file:
-    out_file.write(tabulate([r.values() for r in table], table[0].keys(), tablefmt='latex'))
+plt.show()
+# plt.savefig(out_dir + "gap_bt_ls.png")
+# with open(out_dir + "table_bt_ls.txt", "w", encoding="utf-8") as out_file:
+#     out_file.write(tabulate([r.values() for r in table], table[0].keys(), tablefmt='latex'))
 

@@ -24,21 +24,22 @@ feature_samples_dict = [{'features': 10, 'samples': 200},
                         {'features': 50, 'samples': 200},
                         {'features': 100, 'samples': 100},
                         {'features': 100, 'samples': 500},
-                        {'features': 200, 'samples': 500},
-                        {'features': 300, 'samples': 1000},
+                        {'features': 200, 'samples': 300},
+                        # {'features': 200, 'samples': 500},
+                        # {'features': 300, 'samples': 1000},
                         ]
 
-lambdas = [1e-1, 1e-3, 1e-8]
+# lambdas = [1e-1, 1e-3, 1e-8]
 
 histories = []
 table = []
-plt.rcParams["figure.figsize"] = (20, 20)
+plt.rcParams["figure.figsize"] = (20, 15)
 plt.title("Lambda Variation")
 cols = 3
 fig, axs = plt.subplots(2,cols)
 plt.yscale('log')
 
-n_problems = 50
+n_problems = 20
 all_problems = generate_regression_from_feature_sample_dict(feature_samples_dict, n_problems)
 
 for i, d in enumerate(feature_samples_dict):
@@ -55,8 +56,8 @@ for i, d in enumerate(feature_samples_dict):
     plot = axs[int(i / cols), i % cols]
 
     for ls in GVPM.LineSearches.values:
-        for t, lam in enumerate(lambdas):
-            solver = GVPM(ls=ls, n_min=2, tol=tol, lam_low=lam, plots=False, proj_tol=1e-2)
+        for lam in [1, 0.1, 0.01]:
+            solver = GVPM(ls=ls, n_min=2, tol=tol, lam_low=lam, plots=False, proj_tol=1e-2, fixed_lambda=lam, max_iter=200)
             stats = []
 
             for p in all_problems[i]:
@@ -87,7 +88,7 @@ for i, d in enumerate(feature_samples_dict):
     table.append(row)
 
 out_dir = "plots/lambda/"
-plt.savefig(out_dir + "lambda_f_gap.png")
-with open(out_dir + "table.txt", "w", encoding="utf-8") as out_file:
+plt.savefig(out_dir + "fixed_lambda_gap.png")
+with open(out_dir + "fixed_lamda_table.txt", "w", encoding="utf-8") as out_file:
     out_file.write(tabulate([r.values() for r in table], table[0].keys(), tablefmt='latex'))
 

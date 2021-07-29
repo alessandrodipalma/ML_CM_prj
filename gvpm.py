@@ -35,7 +35,7 @@ class GVPM(Solver):
 
     def __init__(self, ls=LineSearches.EXACT, a_min=1e-5, a_max=1e5, n_min=3, lam_low=1e-3, lam_upp=1, max_iter=100,
                  tol=1e-3,
-                 verbose=False, proj_tol=1e-8, plots=True):
+                 verbose=False, proj_tol=1e-8, plots=True, fixed_lambda=None, fixed_alpha=None):
         """
 
         :param a_min:
@@ -60,6 +60,8 @@ class GVPM(Solver):
         self.ls = ls
         self.projection_tol = proj_tol
         self.plots = plots
+        self.fixed_lambda = fixed_lambda
+        self.fixed_alpha = fixed_alpha
 
     def _update_rule_1(self, d):
         return (d.T @ d) / (d.T @ self.Q @ d)
@@ -91,19 +93,22 @@ class GVPM(Solver):
 
     def line_search(self, x, d, l):
         k = 0
-        if self.ls == self.LineSearches.EXACT:
-            l_new = abs((d.T @ d) / (d.T @ self.Q @ d))
-        elif self.ls == self.LineSearches.BACKTRACK:
-            l_new, it = backtracking_armijo_ls(self.f, self.df, x, d, alpha_min=self.lam_low)
-            k += it
-            # print("lambda_opt={}".format(l_new))
+        if self.fixed_lambda is None:
+            if self.ls == self.LineSearches.EXACT:
+                l_new = abs((d.T @ d) / (d.T @ self.Q @ d))
+            elif self.ls == self.LineSearches.BACKTRACK:
+                l_new, it = backtracking_armijo_ls(self.f, self.df, x, d, alpha_min=self.lam_low)
+                k += it
+                # print("lambda_opt={}".format(l_new))
 
-        if l_new is not None:
-            l = l_new
-        if l_new < self.lam_low:
-            l = self.lam_low
-        if l_new > self.lam_upp:
-            l = self.lam_upp
+            if l_new is not None:
+                l = l_new
+            if l_new < self.lam_low:
+                l = self.lam_low
+            if l_new > self.lam_upp:
+                l = self.lam_upp
+        else:
+            l = self.fixed_lambda
 
         return l, k
 
@@ -137,7 +142,10 @@ class GVPM(Solver):
 
         gradient = self.df(x)
 
-        a = abs(1 / np.max(self._project(x - gradient) - x))
+        if self.fixed_alpha is None:
+            a = abs(1 / np.max(self._project(x - gradient) - x))
+        else:
+            a = self.fixed_alpha
         print(a)
 
         xs = [x]
@@ -145,10 +153,10 @@ class GVPM(Solver):
         rate = []
         fxs = []
         f_gaps = []
+        f_gaps_estimate = []
+        gs = []
+        ds = []
         if self.plots:
-            gs = []
-            ds = []
-
             it_mu_rate = []
             mu_rate = []
             f_rate = []
@@ -198,15 +206,16 @@ class GVPM(Solver):
             rate.append(norm(xs[-1] - xs[-2]))
             rate_norm.append(rate[-1] / xs[-1])
             fxs.append(self.f(x))
-
+            gs.append(norm(gradient))
+            ds.append(norm(d))
             if f_opt is not None:
                 f_gaps.append(abs((fxs[-1] - f_opt) / f_opt))
                 # if k > 0:
                 #     f_rate.append(f_gaps[-1] / f_gaps[-2])
 
             if self.plots:
-                gs.append(norm(gradient))
-                ds.append(norm(d))
+
+
                 a_s.append(a)
 
                 if x_opt is not None:
@@ -222,19 +231,23 @@ class GVPM(Solver):
                     it_mu_rate.append(rate_norm[-1] / rate_norm[-2])
 
             # Stopping criterions
-            if k > 1 and rate_norm[-1] < self.tol:
+            # if k > 1 and rate_norm[-1] < self.tol:
+            # if k > 2 and (fxs[-1] - fxs[-3])/fxs[-1] < self.tol:
+            if ds[-1] < self.tol:
                 if self.verbose:
                     print("Optimal solution found")
                 break
 
             # Update stepsize
-            if d.T @ self.Q @ d <= self.tol:
-                if self.verbose:
-                    print("amax")
-                a = self.a_max
-            else:
-                a_new = self._select_updating_rule(d, a, lam)
-                a = min(self.a_max, max(self.a_min, a_new))
+            if self.fixed_alpha is None:
+                if d.T @ self.Q @ d <= 0:
+                    if self.verbose:
+                        print("amax")
+
+                    a = self.a_max
+                else:
+                    a_new = self._select_updating_rule(d, a, lam)
+                    a = min(self.a_max, max(self.a_min, a_new))
 
             k += 1
         end_time = time.time() - start_time
