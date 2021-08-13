@@ -17,9 +17,9 @@ from gvpm import GVPM
 feature_samples_dict = [
                         {'features': 10, 'samples': 200},
                         {'features': 100, 'samples': 50},
-                        {'features': 50, 'samples': 200},
-                        # {'features': 100, 'samples': 200},
-                        # {'features': 100, 'samples': 500},
+                        # {'features': 50, 'samples': 200},
+                        {'features': 100, 'samples': 200},
+                        {'features': 100, 'samples': 500},
                         # {'features': 100, 'samples': 1000},
                         # {'features': 300, 'samples': 1000},
                         # {'features': 500, 'samples': 2000},
@@ -31,10 +31,10 @@ n_mins = [0,1,3,8,15]
 
 histories = []
 table = []
-plt.rcParams["figure.figsize"] = (20, 20)
+plt.rcParams["figure.figsize"] = (15, 15)
 # plt.title("n_min Variation")
-cols = 3
-fig, axs = plt.subplots(2,cols)
+cols = 2
+fig, axs = plt.subplots(2,2)
 plt.yscale('log')
 
 n_problems = 1
@@ -45,8 +45,8 @@ for i, d in enumerate(feature_samples_dict):
     kernel = 'rbf'
     eps = 0.1
     gamma = 'scale'
-    tol = 1e-5
-    ls = GVPM.LineSearches.EXACT
+    tol = 1e-3
+    ls = GVPM.LineSearches.BACKTRACK
 
     row = {'features': d['features'], 'samples': d['samples']}
     histories = {}
@@ -54,14 +54,14 @@ for i, d in enumerate(feature_samples_dict):
     plot = axs[int(i / cols), i % cols]
 
     for t, n_min in enumerate(n_mins):
-        solver = GVPM(ls=ls, n_min=n_min, tol=tol, lam_low=1e-3, plots=False, proj_tol=1e-3)
+        solver = GVPM(ls=ls, n_min=n_min, tol=tol, lam_low=1e-3, plots=False, proj_tol=1e-3, stopping_rule=GVPM.StoppingRules.gradient)
         stats = []
 
         for p in all_problems[i]:
             X, y = p
 
             model = SVR(solver=solver, C=C, kernel=kernel, eps=eps, gamma=gamma,
-                        exact_solver=CplexSolver(tol=tol, verbose=False))
+                        exact_solver=CplexSolver(tol=1e-10, verbose=False))
             n_sv, alphas, indices = model.train(X, y)
             stats.append(solver.stats)
 
@@ -85,8 +85,8 @@ for i, d in enumerate(feature_samples_dict):
 
     table.append(row)
 
-plt.show()
-# plt.savefig(out_dir + "n_min_f_gap_large_problems.png")
-# with open(out_dir + "table_large_problems.txt", "w", encoding="utf-8") as out_file:
-#     out_file.write(tabulate([r.values() for r in table], table[0].keys(), tablefmt='latex'))
+# plt.show()
+plt.savefig(out_dir + "n_min_f_gap_stop_d.png")
+with open(out_dir + "n_min_table_stop_d.txt", "w", encoding="utf-8") as out_file:
+    out_file.write(tabulate([r.values() for r in table], table[0].keys(), tablefmt='latex'))
 

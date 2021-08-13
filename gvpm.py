@@ -71,11 +71,13 @@ class GVPM(Solver):
 
         self.stopping_rule = stopping_rule
 
+        self.checkpoints = False
+
     def _update_rule_1(self, d):
-        return (d.T @ d) / (d.T @ self.Q @ d)
+        return self.d_norm ** 2 / self.dQd
 
     def _update_rule_2(self, d):
-        return (d.T @ self.Q @ d) / (d.T @ self.Q_square @ d)
+        return self.dQd / (d.T @ self.Q_square @ d)
 
     def _select_updating_rule(self, d, a, lam):
         a_new = {1: self._update_rule_1(d), 2: self._update_rule_2(d)}
@@ -103,7 +105,7 @@ class GVPM(Solver):
         k = 0
         if self.fixed_lambda is None:
             if self.ls == self.LineSearches.EXACT:
-                l_new = abs((d.T @ d) / (d.T @ self.Q @ d))
+                l_new = abs(self.d_norm**2 / self.dQd)
             elif self.ls == self.LineSearches.BACKTRACK:
                 l_new, it = backtracking_armijo_ls(self.f, self.df, x, d, alpha_min=self.lam_low)
                 k += it
@@ -191,12 +193,12 @@ class GVPM(Solver):
         elif self.stopping_rule == 'f':
             stop = lambda: k > 2 and (fxs[-1] - fxs[-3]) / fxs[-1] < self.tol
         elif self.stopping_rule == 'd':
-            stop = lambda: ds[-1] < self.tol
+            stop = lambda: self.d_norm < self.tol
 
-
-        tols = [1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8]
-        tol_index = 0
-        self.tol = tols[tol_index]
+        if self.checkpoints:
+            tols = [1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8]
+            tol_index = 0
+            self.tol = tols[tol_index]
         while k < self.max_iter:
 
             # print("before\t gradient={}\tx={}\ta={}".format(norm(gradient), norm(x), a))
@@ -204,7 +206,8 @@ class GVPM(Solver):
             start_time_proj = time.time()
 
             d = self._project(x - a * gradient) - x
-
+            self.d_norm = norm(d)
+            self.dQd = d.T @ self.Q @ d
             time_proj += time.time() - start_time_proj
             # print("\t\tElapsed time in projection", time_proj)
             # print("projected d ={}".format(norm(d)))
@@ -227,7 +230,7 @@ class GVPM(Solver):
             rate_norm.append(rate[-1] / xs[-1])
             fxs.append(self.f(x))
             gs.append(norm(gradient))
-            ds.append(norm(d))
+            ds.append(self.d_norm)
             if f_opt is not None:
                 f_gaps.append(abs((fxs[-1] - f_opt) / f_opt))
                 # if k > 0:
@@ -253,17 +256,21 @@ class GVPM(Solver):
             # Stopping criterions
 
             if stop():
-                self.checkpoints[self.tol] = {'it': k, 'gap':f_gaps[-1]}
-                tol_index += 1
-                if tol_index > len(tols) -1 :
+                if self.checkpoints:
+                    self.checkpoints[self.tol] = {'it': k, 'gap':f_gaps[-1]}
+                    tol_index += 1
+                    if tol_index > len(tols) -1 :
+                        print("Optimal solution found")
+                        break
+                    self.tol = tols[tol_index]
+                else:
                     print("Optimal solution found")
                     break
-                self.tol = tols[tol_index]
 
 
             # Update stepsize
             if self.fixed_alpha is None:
-                if d.T @ self.Q @ d <= 0:
+                if self.dQd <= 0:
                     if self.verbose:
                         print("amax")
 

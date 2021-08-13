@@ -27,7 +27,7 @@ eps = 0.1
 gamma = 'scale'
 tol = 1e-4
 
-ls = GVPM.LS_BACKTRACK
+ls = GVPM.LineSearches.BACKTRACK
 
 solver = GVPM(ls=ls, n_min=2, tol=tol, lam_low=1e-3, plots=False, proj_tol=1e-3)
 model = SVR(solver = solver,

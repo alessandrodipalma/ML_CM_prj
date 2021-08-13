@@ -33,8 +33,6 @@ out_dir = "./plots/tolerance/"
 # os.mkdir("./plots/n_min/")
 tols = [1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8]
 
-
-
 n_problems = 20
 all_problems = generate_regression_from_feature_sample_dict(feature_samples_dict, n_problems, fixed_rs=42)
 tols.reverse()
@@ -66,12 +64,12 @@ for stopping_rule in GVPM.StoppingRules.values:
         it = {}
         f_gap = {}
 
-
+        for tol in tols:
+            it[i, tol] = 0
+            f_gap[i, tol] = 0
 
         for p in all_problems[i]:
-            for tol in tols:
-                it[i, tol] = 0
-                f_gap[i, tol] = 0
+
             solver = GVPM(ls=ls, n_min=2, tol=1e-8, lam_low=1e-3,
                           plots=False, proj_tol=1e-8, max_iter=2000, stopping_rule=stopping_rule)
             stats = []
@@ -82,7 +80,7 @@ for stopping_rule in GVPM.StoppingRules.values:
                         exact_solver=CplexSolver(tol=1e-10, verbose=False))
             n_sv, alphas, indices = model.train(X, y)
             stats.append(solver.stats)
-            k+= solver.cond
+            k += solver.cond
 
 
             for tol in tols.__reversed__():
@@ -90,11 +88,11 @@ for stopping_rule in GVPM.StoppingRules.values:
                 it[i, tol] += iterates
                 f_gap[i, tol] += final_gap
 
-        row["cond"] = k /n_problems
+        row["cond"] = k / n_problems
 
         for t, tol in enumerate(tols):
-            k, final_gap = solver.checkpoints[tol].values()
-            plot.plot(np.arange(k), solver.f_gap_history[:k], label='tol = {}'.format(tol),linewidth=2)
+            iterates, final_gap = solver.checkpoints[tol].values()
+            plot.plot(np.arange(iterates), solver.f_gap_history[:iterates], label='tol = {}'.format(tol), linewidth=2)
             row["{} it".format(tol)] = it[i, tol] / n_problems
             row["{} f_gap".format(tol)] = f_gap[i, tol] / n_problems
         plot.set_title("{} features, {} samples, k={}".format(d['features'], d['samples'], solver.cond))
