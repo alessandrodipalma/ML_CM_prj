@@ -16,9 +16,9 @@ from gvpm import GVPM
 feature_samples_dict = [{'features': 10, 'samples': 200},
                         {'features': 50, 'samples': 200},
                         {'features': 100, 'samples': 100},
-                        # {'features': 100, 'samples': 500},
-                        # {'features': 200, 'samples': 500},
-                        # {'features': 300, 'samples': 1000},
+                        {'features': 100, 'samples': 500},
+                        {'features': 200, 'samples': 500},
+                        {'features': 300, 'samples': 1000},
                         ]
 
 out_dir = "plots/a_range/"
@@ -32,7 +32,7 @@ cols = 3
 fig, axs = plt.subplots(2,cols)
 plt.yscale('log')
 
-n_problems = 1
+n_problems = 20
 all_problems = generate_regression_from_feature_sample_dict(feature_samples_dict, n_problems)
 
 for i, d in enumerate(feature_samples_dict):
@@ -40,7 +40,7 @@ for i, d in enumerate(feature_samples_dict):
     kernel = 'rbf'
     eps = 0.1
     gamma = 'scale'
-    tol = 1e-3
+    tol = 1e-2
     ls = GVPM.LineSearches.BACKTRACK
 
     row = {'features': d['features'], 'samples': d['samples']}
@@ -48,16 +48,16 @@ for i, d in enumerate(feature_samples_dict):
 
     plot = axs[int(i / cols), i % cols]
 
-    for t, a in enumerate(a_ranges):
+    for t, a in enumerate(a_ranges.__reversed__()):
         solver = GVPM(ls=ls, n_min=2, tol=tol, lam_low=1e-3, plots=False, proj_tol=1e-2, a_min=a, a_max=1 / a)
         stats = []
 
         for p in all_problems[i]:
-            X_train, X_test, y_train, y_test = p
+            X, y = p
 
             model = SVR(solver=solver, C=C, kernel=kernel, eps=eps, gamma=gamma,
-                        exact_solver=CplexSolver(tol=tol, verbose=False))
-            n_sv, alphas, indices = model.train(X_train, y_train)
+                        exact_solver=CplexSolver(tol=1e-10, verbose=False))
+            n_sv, alphas, indices = model.train(X, y)
             stats.append(solver.stats)
 
         it = 0
@@ -73,7 +73,7 @@ for i, d in enumerate(feature_samples_dict):
         row["{} {} time".format(ls, a)] = time_spent / n_problems
 
 
-        plot.plot(np.arange(len(solver.f_gap_history)), solver.f_gap_history, label='a +-, {} ls'.format(a, ls))
+        plot.plot(np.arange(len(solver.f_gap_history)), solver.f_gap_history, label='[{},-{}]'.format(a,a))
     # plot.axhline(y=1, color='r', linestyle='-')
     plot.set_title("{} features, {} samples".format(d["features"], d["samples"]))
     plot.legend()
@@ -81,8 +81,8 @@ for i, d in enumerate(feature_samples_dict):
 
     table.append(row)
 
-plt.show()
-# plt.savefig(out_dir + "gap_bt_ls.png")
-# with open(out_dir + "table_bt_ls.txt", "w", encoding="utf-8") as out_file:
-#     out_file.write(tabulate([r.values() for r in table], table[0].keys(), tablefmt='latex'))
+# plt.show()
+plt.savefig(out_dir + "a_range_gap.png")
+with open(out_dir + "table_a_range.txt", "w", encoding="utf-8") as out_file:
+    out_file.write(tabulate([r.values() for r in table], table[0].keys(), tablefmt='latex'))
 

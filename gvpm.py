@@ -156,7 +156,8 @@ class GVPM(Solver):
             a = abs(1 / np.max(self._project(x - gradient) - x))
         else:
             a = self.fixed_alpha
-        print(a)
+        if self.verbose:
+            print('alpha', a)
 
         xs = [x]
         rate_norm = []

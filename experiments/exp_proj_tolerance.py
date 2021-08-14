@@ -28,11 +28,11 @@ proj_tols = [1e-1, 1e-2, 1e-4, 1e-8]
 histories = []
 table = []
 plt.rcParams["figure.figsize"] = (20, 20)
-cols = 3
+cols = 2
 fig, axs = plt.subplots(2,cols)
 plt.yscale('log')
 
-n_problems = 10
+n_problems = 20
 all_problems = generate_regression_from_feature_sample_dict(feature_samples_dict, n_problems)
 
 for i, d in enumerate(feature_samples_dict):
@@ -55,11 +55,11 @@ for i, d in enumerate(feature_samples_dict):
             stats = []
 
             for p in all_problems[i]:
-                X_train, X_test, y_train, y_test = p
+                X, y = p
 
                 model = SVR(solver=solver, C=C, kernel=kernel, eps=eps, gamma=gamma,
-                            exact_solver=CplexSolver(tol=tol, verbose=False))
-                n_sv, alphas, indices = model.train(X_train, y_train)
+                            exact_solver=CplexSolver(tol=1e-10, verbose=False))
+                n_sv, alphas, indices = model.train(X, y)
                 stats.append(solver.stats)
 
             final_stats = {}
@@ -82,7 +82,7 @@ for i, d in enumerate(feature_samples_dict):
 
     table.append(row)
 
-plt.savefig(out_dir + "n_min_f_gap.png")
-with open(out_dir + "table.txt", "w", encoding="utf-8") as out_file:
+plt.savefig(out_dir + "proj_tol_gap.png")
+with open(out_dir + "proj_tol_table.txt", "w", encoding="utf-8") as out_file:
     out_file.write(tabulate([r.values() for r in table], table[0].keys(), tablefmt='latex'))
 

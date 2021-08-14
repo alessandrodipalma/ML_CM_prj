@@ -25,7 +25,7 @@ feature_samples_dict = [{'features': 10, 'samples': 200},
                         {'features': 100, 'samples': 100},
                         {'features': 100, 'samples': 500},
                         {'features': 200, 'samples': 300},
-                        # {'features': 200, 'samples': 500},
+                        {'features': 200, 'samples': 500},
                         # {'features': 300, 'samples': 1000},
                         ]
 
@@ -34,7 +34,6 @@ feature_samples_dict = [{'features': 10, 'samples': 200},
 histories = []
 table = []
 plt.rcParams["figure.figsize"] = (20, 15)
-plt.title("Lambda Variation")
 cols = 3
 fig, axs = plt.subplots(2,cols)
 plt.yscale('log')
@@ -47,7 +46,7 @@ for i, d in enumerate(feature_samples_dict):
     kernel = 'rbf'
     eps = 0.1
     gamma = 'scale'
-    tol = 1e-3
+    tol = 1e-2
     ls = GVPM.LineSearches.BACKTRACK
 
     row = {'features': d['features'], 'samples': d['samples']}
@@ -57,15 +56,15 @@ for i, d in enumerate(feature_samples_dict):
 
     for ls in GVPM.LineSearches.values:
         for lam in [1, 0.1, 0.01]:
-            solver = GVPM(ls=ls, n_min=2, tol=tol, lam_low=lam, plots=False, proj_tol=1e-2, fixed_lambda=lam, max_iter=200)
+            solver = GVPM(ls=ls, n_min=2, tol=tol, lam_low=lam, plots=False, proj_tol=1e-2, max_iter=100)
             stats = []
 
             for p in all_problems[i]:
-                X_train, X_test, y_train, y_test = p
+                X, y = p
 
                 model = SVR(solver=solver, C=C, kernel=kernel, eps=eps, gamma=gamma,
-                            exact_solver=CplexSolver(tol=tol, verbose=False))
-                n_sv, alphas, indices = model.train(X_train, y_train)
+                            exact_solver=CplexSolver(tol=1e-10, verbose=False))
+                n_sv, alphas, indices = model.train(X, y)
                 stats.append(solver.stats)
 
             it = 0
@@ -88,7 +87,7 @@ for i, d in enumerate(feature_samples_dict):
     table.append(row)
 
 out_dir = "plots/lambda/"
-plt.savefig(out_dir + "fixed_lambda_gap.png")
-with open(out_dir + "fixed_lamda_table.txt", "w", encoding="utf-8") as out_file:
+plt.savefig(out_dir + "lambda_gap.png")
+with open(out_dir + "lamda_table.txt", "w", encoding="utf-8") as out_file:
     out_file.write(tabulate([r.values() for r in table], table[0].keys(), tablefmt='latex'))
 

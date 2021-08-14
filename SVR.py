@@ -1,7 +1,7 @@
 import time
 from solver import Solver
 from svm import SVM, np
-
+from joblib import Parallel, delayed
 
 class SVR(SVM):
 
@@ -11,6 +11,7 @@ class SVR(SVM):
         self.exact_solver = exact_solver
         self.eps = eps
         self.bias = 0
+        self.is_multi_output = False
 
     def train(self, x, d):
         if len(x) == len(d):
@@ -26,25 +27,46 @@ class SVR(SVM):
         # print("training with x={}, d={}".format(x,d))
 
         K = self.compute_K(x)
+        if len(d.shape) == 1:
+            self.x, self.support_alpha, self.d, self.bias, indexes = self.compute_alphas(K, d, n, x)
+            return len(self.support_alpha), self.support_alpha, indexes
+        else: # train for each dimension
+            self.dimensions = []
+            self.is_multi_output = True
+            self.dimensions = Parallel(n_jobs=2)(delayed(self.parallel_compute_alpha)(K, d, i, n, x) for i in range(d.shape[1]))
+            self.dimensions = sorted(self.dimensions, key=lambda k: k['i'])
+            print(self.dimensions[0]['i'])
+            return self.dimensions
+
+    def parallel_compute_alpha(self, K, d, i, n, x):
+        # print("----------------------------------------------- i = ", i)
+        support_x, support_alpha, des_out, bias, support_indexes = self.compute_alphas(K, d[:, i], n, x)
+        return {
+            'i': i,
+            'x': support_x,
+             'support_alpha': support_alpha,
+             'd': des_out,
+             'bias': bias,
+             'indexes': support_indexes
+             }
+
+    def compute_alphas(self, K, d, n, x):
         alpha = self.solve_optimization(d, K, x)
         multipliers = alpha[:n] - alpha[n:]
-
-        indexes = np.where(abs(multipliers) > (self.C * 1e-6))[0]
-        print("number of sv: ", len(indexes), )
-        self.x = x[indexes]
+        indexes = np.where(abs(multipliers) > (self.C * 1e-3))[0]
+        # print("number of sv: ", len(indexes), )
+        x = x[indexes]
         a = alpha[indexes]
         a_star = alpha[indexes + n]
-        self.support_alpha = multipliers[indexes]
-        self.d = d[indexes]
-
-        self.bias = 0
+        support_alpha = multipliers[indexes]
+        d = d[indexes]
+        bias = 0
         # estimates = np.full(len(self.x), -self.eps) + self.d - self.predict(self.x)
         # left = np.max(estimates[np.where(np.logical_or(a <= self.C, a_star <= self.solver.tol))])
         # right = np.min(estimates[np.where(np.logical_or(a >= self.solver.tol, a_star <= self.C))])
         # self.bias = (left+right)/2
-        print(self.bias)
-
-        return len(self.support_alpha), self.support_alpha, indexes
+        # print(self.bias)
+        return x, support_alpha, d, bias, indexes
 
     # def comput_bias(self):
     #     i0 = np.where(np.)
@@ -87,8 +109,15 @@ class SVR(SVM):
         return alpha
 
     def compute_out(self, x):
-        f = lambda i: self.support_alpha[i] * self.kernel(x, self.x[i]) + self.bias
-        out = np.sum(np.array(list(map(f, np.arange(len(self.support_alpha))))))
+        if self.is_multi_output:
+            out = np.zeros(len(self.dimensions))
+            for i, dim in enumerate(self.dimensions):
+                f = lambda i: dim['support_alpha'][i] * self.kernel(x, dim['x'][i]) + dim['bias']
+                out[i] = np.sum(np.array(list(map(f, np.arange(len(dim['support_alpha']))))))
+        else:
+            f = lambda i: self.support_alpha[i] * self.kernel(x, self.x[i]) + self.bias
+            out = np.sum(np.array(list(map(f, np.arange(len(self.support_alpha))))))
+
         return out
 
     def predict(self, x):
