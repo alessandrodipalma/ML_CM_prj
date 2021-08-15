@@ -6,9 +6,8 @@ from joblib import Parallel, delayed
 class SVR(SVM):
 
     def __init__(self, solver: Solver, exact_solver=None, kernel='rbf', C=1, eps=0.001, gamma='scale', degree=3):
-        super().__init__(kernel, C, gamma, degree)
-        self.solver = solver
-        self.exact_solver = exact_solver
+        super().__init__(solver, exact_solver, kernel, C, gamma, degree)
+
         self.eps = eps
         self.bias = 0
         self.is_multi_output = False
@@ -27,10 +26,13 @@ class SVR(SVM):
         # print("training with x={}, d={}".format(x,d))
 
         K = self.compute_K(x)
+        print(d.shape, len(d.shape))
         if len(d.shape) == 1:
+            print("Single valued")
             self.x, self.support_alpha, self.d, self.bias, indexes = self.compute_alphas(K, d, n, x)
             return len(self.support_alpha), self.support_alpha, indexes
         else: # train for each dimension
+            print("Multi values")
             self.dimensions = []
             self.is_multi_output = True
             self.dimensions = Parallel(n_jobs=2)(delayed(self.parallel_compute_alpha)(K, d, i, n, x) for i in range(d.shape[1]))
@@ -51,32 +53,35 @@ class SVR(SVM):
              }
 
     def compute_alphas(self, K, d, n, x):
-        alpha = self.solve_optimization(d, K, x)
+        alpha = self.solve_optimization(d, K)
         multipliers = alpha[:n] - alpha[n:]
-        indexes = np.where(abs(multipliers) > (self.C * 1e-3))[0]
+        indexes = np.where(abs(multipliers) > (self.C * 1e-6))[0]
         # print("number of sv: ", len(indexes), )
+
+        def single_predict(input):
+            return self.single_output_predition(input, multipliers, x, 0)
+
+        predictions = np.array(list(map(single_predict, x)))
+        estimates = d - predictions - np.full(len(x), - self.eps)
+
+        a = alpha[:n]
+        a_star = alpha[n:]
+        selected_estimates_left = estimates[np.where(np.logical_or(np.logical_and(a < self.C, a > 1e-6),
+                                                                   np.logical_and(a_star > 1e-6, a_star < self.C)))]
+
+        bias = np.mean(selected_estimates_left)
         x = x[indexes]
-        a = alpha[indexes]
-        a_star = alpha[indexes + n]
         support_alpha = multipliers[indexes]
         d = d[indexes]
-        bias = 0
-        # estimates = np.full(len(self.x), -self.eps) + self.d - self.predict(self.x)
-        # left = np.max(estimates[np.where(np.logical_or(a <= self.C, a_star <= self.solver.tol))])
-        # right = np.min(estimates[np.where(np.logical_or(a >= self.solver.tol, a_star <= self.C))])
-        # self.bias = (left+right)/2
-        # print(self.bias)
         return x, support_alpha, d, bias, indexes
 
     # def comput_bias(self):
     #     i0 = np.where(np.)
 
-    def solve_optimization(self, d, Q, x):
+    def solve_optimization(self, d, Q):
         """
         :param d: desired outputs
-        :param n:
         :param Q: Computed kernel matrix
-        :param solver:
         :param knapsack_solver:
         :return:
         """
@@ -112,13 +117,18 @@ class SVR(SVM):
         if self.is_multi_output:
             out = np.zeros(len(self.dimensions))
             for i, dim in enumerate(self.dimensions):
-                f = lambda i: dim['support_alpha'][i] * self.kernel(x, dim['x'][i]) + dim['bias']
-                out[i] = np.sum(np.array(list(map(f, np.arange(len(dim['support_alpha']))))))
+                out[i] = self.single_output_predition(x, dim['support_alpha'], dim['x'], dim['bias'])
         else:
-            f = lambda i: self.support_alpha[i] * self.kernel(x, self.x[i]) + self.bias
-            out = np.sum(np.array(list(map(f, np.arange(len(self.support_alpha))))))
+            out = self.single_output_predition(x, self.support_alpha, self.x, self.bias)
 
         return out
 
+    def single_output_predition(self, x, support_alpha, sv, bias):
+        f = lambda i: support_alpha[i] * self.kernel(x, sv[i])
+        out = np.sum(np.array(list(map(f, np.arange(len(support_alpha)))))) \
+              + bias
+        return out
+
     def predict(self, x):
-        return np.array(list(map(self.compute_out, x)))
+        print('bias', self.bias)
+        return self.parallel_predict(x)

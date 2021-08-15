@@ -1,12 +1,13 @@
 import numpy as np
 from gvpm import GVPM
+from solver import Solver
 
 
 class SVM:
     KERNELS = {'rbf': 'rbf', 'poly': 'poly', 'linear': 'linear'}
 
     # TODO labels with 0 value, or 0 data results in singular contraints matrix, should be fixed
-    def __init__(self, kernel='rbf', C=1.0, gamma='scale', degree=3):
+    def __init__(self, solver: Solver, exact_solver=None, kernel='rbf', C=1.0, gamma='scale', degree=3):
         """
 
         :type C: float
@@ -16,6 +17,9 @@ class SVM:
         self.C = C
         self.gamma = gamma
         self.gamma_value = None
+        self.solver = solver
+        self.exact_solver = exact_solver
+
 
     def create_rbf_kernel(self):
         # print("Rbf kernel with sigma = {}".format(gamma))
@@ -70,7 +74,7 @@ class SVM:
             for j in range(n):
                 Q[i, j] = d[i] * d[j] * K[i, j]
 
-        alpha = self.solve_optimization(C, d, n, Q)
+        alpha = self.solve_optimization(d, Q)
         print(alpha)
         # alpha = LDBCQP(q=np.ones(n), Q=Q, u=np.full(len(x), self.C)).solve_quadratic()
         # print("my = {}, frang = {}".format(alpha1, alpha))
@@ -102,6 +106,7 @@ class SVM:
         :param n: input vector dimension
         :return:
         """
+        n = Q.shape[0]
         q = - np.ones(n)
         A = np.append(np.identity(n), np.diag(np.full(n, -1)), axis=0)
         b = np.append(np.full(n, C), np.zeros(n))
@@ -125,8 +130,11 @@ class SVM:
         # print(out)
         return out
 
+    def parallel_predict(self, x):
+        return np.array(list(map(self.compute_out, x)))
+
     def predict(self, x):
         # print("PREDICTING...\nalpha={}".format(self.alpha))
-        out = np.array(list(map(self.compute_out, x)))
+        out = self.parallel_predict(x)
         # print(out)
         return np.sign(out)

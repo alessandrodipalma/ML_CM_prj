@@ -27,16 +27,16 @@ y_scaler = preprocessing.StandardScaler()
 y = y_scaler.fit(y).transform(y)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33)
 
-C = 15
-kernel = 'poly'
-eps = 0.01
-gamma = 'auto'
-tol = 1e-3
+C = 0.1
+kernel = 'rbf'
+eps = 0.001
+gamma = 'scale'
+tol = 1e-8
 
-solver = GVPM(ls=GVPM.LineSearches.BACKTRACK, n_min=2, tol=tol, lam_low=1e-6, plots=False, proj_tol=1e-3)
+solver = GVPM(ls=GVPM.LineSearches.BACKTRACK, n_min=3, tol=tol, lam_low=1e-6, plots=False, proj_tol=1e-3)
 model = SVR(solver = solver,
             # exact_solver=CplexSolver(tol=tol, verbose=False),
-            C=C, kernel=kernel, eps=eps, gamma=gamma, degree=5)
+            C=C, kernel=kernel, eps=eps, gamma=gamma, degree=4)
 train_err = []
 test_err = []
 
@@ -47,7 +47,7 @@ model_sota = MultiOutputRegressor(svm.SVR(C=C, kernel=kernel, epsilon=eps, gamma
 train_err_sota = []
 test_err_sota = []
 
-batch_size = int(len(X_train) / 3)
+batch_size = int(len(X_train) / 2)
 
 print(batch_size)
 print(X_train.shape, y_train.shape)

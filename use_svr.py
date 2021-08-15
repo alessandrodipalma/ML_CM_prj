@@ -2,8 +2,6 @@ from sklearn.datasets import make_regression
 from sklearn.model_selection import train_test_split
 import numpy as np
 
-import load_cup_ds
-from Cplex_Solver import CplexSolver
 from SVR import SVR
 from sklearn.metrics import mean_squared_error as mse, mean_absolute_error as mae
 from sklearn import svm, preprocessing
@@ -23,13 +21,13 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33)
 
 C = 1
 kernel = 'rbf'
-eps = 0.1
+eps = 0.01
 gamma = 'scale'
-tol = 1e-4
+tol = 1e-2
 
 ls = GVPM.LineSearches.BACKTRACK
 
-solver = GVPM(ls=ls, n_min=2, tol=tol, lam_low=1e-3, plots=False, proj_tol=1e-3)
+solver = GVPM(ls=ls, n_min=2, tol=tol, lam_low=1e-3, plots=False, proj_tol=1e-8)
 model = SVR(solver = solver,
             # exact_solver=CplexSolver(tol=tol, verbose=False),
             C=C, kernel=kernel, eps=eps, gamma=gamma)
