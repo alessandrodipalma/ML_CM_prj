@@ -79,7 +79,7 @@ class SVM:
         # alpha = LDBCQP(q=np.ones(n), Q=Q, u=np.full(len(x), self.C)).solve_quadratic()
         # print("my = {}, frang = {}".format(alpha1, alpha))
         b = 0
-        indexes = np.where(alpha > (C / 10000))[0]
+        indexes = np.where(alpha > (self.C * 1-6))[0]
         # print(alpha)
         for j in indexes:
             sum = 0
@@ -108,20 +108,11 @@ class SVM:
         """
         n = Q.shape[0]
         q = - np.ones(n)
-        A = np.append(np.identity(n), np.diag(np.full(n, -1)), axis=0)
-        b = np.append(np.full(n, C), np.zeros(n))
-        E = d
-        e = np.zeros((1, 1))
+        l = np.full(n, 0.)
+        u = np.full(n, float(self.C))
 
-        # alpha = GradientProjection(f=lambda x: 0.5 * x.T @ Q @ x + q @ x,
-        #                            df=lambda x: Q @ x + q,
-        #                            A=A, b=b, Q=E.reshape((1, E.shape[0])), q=e) \
-        #     .solve(x0=np.full(n, 0))
-
-        alpha = GVPM(f=lambda x: 0.5 * x.T @ Q @ x + q @ x,
-                     df=lambda x: Q @ x + q,
-                     A=A, b=b) \
-            .solve(x0=np.full(n, C / 2))
+        self.solver.define_quad_objective(Q, q, l, u,d, 0)
+        alpha = self.solver.solve(x0=np.full(n, self.C / 2))[0]
         return alpha
 
     def compute_out(self, x):

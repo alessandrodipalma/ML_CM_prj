@@ -9,7 +9,6 @@ class SVR(SVM):
         super().__init__(solver, exact_solver, kernel, C, gamma, degree)
 
         self.eps = eps
-        self.bias = 0
         self.is_multi_output = False
 
     def train(self, x, d):
@@ -70,6 +69,7 @@ class SVR(SVM):
                                                                    np.logical_and(a_star > 1e-6, a_star < self.C)))]
 
         bias = np.mean(selected_estimates_left)
+        print("bias {}".format(bias))
         x = x[indexes]
         support_alpha = multipliers[indexes]
         d = d[indexes]
@@ -130,5 +130,4 @@ class SVR(SVM):
         return out
 
     def predict(self, x):
-        print('bias', self.bias)
         return self.parallel_predict(x)

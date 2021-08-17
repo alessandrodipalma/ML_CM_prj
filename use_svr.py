@@ -19,11 +19,11 @@ y = 2 * (y - min(y)) / (max(y) - min(y)) - 1
 print(y)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33)
 
-C = 1
-kernel = 'rbf'
-eps = 0.01
+C = 3
+kernel = 'poly'
+eps = 0.1
 gamma = 'scale'
-tol = 1e-2
+tol = 1e-3
 
 ls = GVPM.LineSearches.BACKTRACK
 

@@ -2,7 +2,8 @@ from matplotlib import pyplot as plt
 from sklearn.datasets import make_classification
 from sklearn.model_selection import train_test_split
 import numpy as np
-import libsvm.svm as SVM_lib
+
+from gvpm import GVPM
 from svm import SVM
 from sklearn.metrics import mean_squared_error as mse
 from sklearn.svm import SVC
@@ -18,9 +19,12 @@ y = np.where(y == 0, -1, y)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
 
 C = 1
-kernel = 'poly'
+kernel = 'linear'
 
-model = SVM(C=C, kernel=kernel)
+solver = GVPM(ls=GVPM.LineSearches.BACKTRACK, n_min=2, tol=1e-1, lam_low=1e-5, plots=False, proj_tol=1e-3)
+model = SVM(solver = solver,
+            # exact_solver=CplexSolver(tol=tol, verbose=False),
+            C=C, kernel=kernel)
 train_err = []
 test_err = []
 
@@ -37,7 +41,7 @@ for i in range(0, int(len(X) / batch_size)):
     print("i={}----------------------------------------------------------------------".format(i))
     bs = (i + 1) * batch_size
 
-    n_sv, alphas, indices = model.train(X_train[:bs], y_train[:bs], sigma=1 / (n_features * X_train.var()))
+    n_sv, alphas, indices = model.train(X_train[:bs], y_train[:bs])
     prediction = model.predict(X_train)
 
     train_err.append(mse(prediction, y_train))

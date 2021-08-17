@@ -27,13 +27,13 @@ y_scaler = preprocessing.StandardScaler()
 y = y_scaler.fit(y).transform(y)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33)
 
-C = 0.1
+C = 3
 kernel = 'rbf'
 eps = 0.001
-gamma = 'scale'
-tol = 1e-8
+gamma = 'auto'
+tol = 1e-3
 
-solver = GVPM(ls=GVPM.LineSearches.BACKTRACK, n_min=3, tol=tol, lam_low=1e-6, plots=False, proj_tol=1e-3)
+solver = GVPM(ls=GVPM.LineSearches.BACKTRACK, n_min=3, tol=tol, lam_low=1e-3, plots=False, proj_tol=1e-3)
 model = SVR(solver = solver,
             # exact_solver=CplexSolver(tol=tol, verbose=False),
             C=C, kernel=kernel, eps=eps, gamma=gamma, degree=4)
