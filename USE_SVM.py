@@ -4,27 +4,33 @@ from sklearn.model_selection import train_test_split
 import numpy as np
 
 from gvpm import GVPM
+from load_monk import load_monk
 from svm import SVM
 from sklearn.metrics import mean_squared_error as mse
+from sklearn.metrics import accuracy_score
 from sklearn.svm import SVC
 
 from utils import plot_error, plot_sv_number
 
 np.random.seed(42)
-n_features = 10
-X, y = make_classification(n_samples=400, n_features=n_features, n_classes=2, n_clusters_per_class=1, n_redundant=0)
+# n_features = 10
+# X, y = make_classification(n_samples=400, n_features=n_features, n_classes=2, n_clusters_per_class=1, n_redundant=0)
+X_train, y_train = load_monk(3, 'train')
+X_test, y_test = load_monk(3, 'test')
 # y = y / 10 + np.full(len(y), 0.1)
-y = np.where(y == 0, -1, y)
+
+y_train = np.where(y_train == 0, -1, y_train)
+y_test = np.where(y_test == 0, -1, y_test)
 # print(y)
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
+# X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
 
-C = 1
-kernel = 'linear'
+C = 100
+kernel = 'poly'
 
-solver = GVPM(ls=GVPM.LineSearches.BACKTRACK, n_min=2, tol=1e-1, lam_low=1e-5, plots=False, proj_tol=1e-3)
+solver = GVPM(ls=GVPM.LineSearches.BACKTRACK, n_min=2, tol=1e-3, lam_low=1e-3, plots=False, proj_tol=1e-3)
 model = SVM(solver = solver,
             # exact_solver=CplexSolver(tol=tol, verbose=False),
-            C=C, kernel=kernel)
+            C=C, kernel=kernel, gamma="auto", degree=9)
 train_err = []
 test_err = []
 
@@ -37,15 +43,15 @@ test_err_sota = []
 
 batch_size = int(len(X_train) / 10)
 
-for i in range(0, int(len(X) / batch_size)):
+for i in range(0, int(len(X_train) / batch_size)):
     print("i={}----------------------------------------------------------------------".format(i))
     bs = (i + 1) * batch_size
 
     n_sv, alphas, indices = model.train(X_train[:bs], y_train[:bs])
     prediction = model.predict(X_train)
 
-    train_err.append(mse(prediction, y_train))
-    test_err.append(mse(model.predict(X_test), y_test))
+    train_err.append(accuracy_score(prediction, y_train))
+    test_err.append(accuracy_score(model.predict(X_test), y_test))
 
     model_sota.fit(X_train[:bs], y_train[:bs])
     prediction = model_sota.predict(X_train)
@@ -53,8 +59,8 @@ for i in range(0, int(len(X) / batch_size)):
     support_vectors = (X_train[:bs])[support_vector_indices]
     n_sv_sota = len(support_vectors)
 
-    train_err_sota.append(mse(prediction, y_train))
-    test_err_sota.append(mse(model_sota.predict(X_test), y_test))
+    train_err_sota.append(accuracy_score(prediction, y_train))
+    test_err_sota.append(accuracy_score(model_sota.predict(X_test), y_test))
 
     sv.append(n_sv)
     sv_sota.append(n_sv_sota)

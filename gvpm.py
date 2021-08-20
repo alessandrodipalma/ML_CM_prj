@@ -261,11 +261,13 @@ class GVPM(Solver):
                     self.checkpoints[self.tol] = {'it': k, 'gap':f_gaps[-1]}
                     tol_index += 1
                     if tol_index > len(tols) -1 :
-                        print("Optimal solution found")
+                        if self.verbose:
+                            print("Optimal solution found")
                         break
                     self.tol = tols[tol_index]
                 else:
-                    print("Optimal solution found")
+                    if self.verbose:
+                        print("Optimal solution found")
                     break
 
 

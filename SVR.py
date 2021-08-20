@@ -27,16 +27,13 @@ class SVR(SVM):
         K = self.compute_K(x)
         print(d.shape, len(d.shape))
         if len(d.shape) == 1:
-            print("Single valued")
             self.x, self.support_alpha, self.d, self.bias, indexes = self.compute_alphas(K, d, n, x)
             return len(self.support_alpha), self.support_alpha, indexes
         else: # train for each dimension
-            print("Multi values")
             self.dimensions = []
             self.is_multi_output = True
             self.dimensions = Parallel(n_jobs=2)(delayed(self.parallel_compute_alpha)(K, d, i, n, x) for i in range(d.shape[1]))
             self.dimensions = sorted(self.dimensions, key=lambda k: k['i'])
-            print(self.dimensions[0]['i'])
             return self.dimensions
 
     def parallel_compute_alpha(self, K, d, i, n, x):
@@ -69,7 +66,8 @@ class SVR(SVM):
                                                                    np.logical_and(a_star > 1e-6, a_star < self.C)))]
 
         bias = np.mean(selected_estimates_left)
-        print("bias {}".format(bias))
+        if self.verbose:
+            print("bias {}".format(bias))
         x = x[indexes]
         support_alpha = multipliers[indexes]
         d = d[indexes]
@@ -109,7 +107,8 @@ class SVR(SVM):
         alpha, f_star, gradient = self.solver.solve(x0=np.zeros(2 * n), x_opt=alpha_opt, f_opt=f_star)
         end_time = time.time() - start_time
 
-        print("took {} to solve".format(end_time))
+        if self.verbose:
+            print("took {} to solve".format(end_time))
         # input()
         return alpha
 

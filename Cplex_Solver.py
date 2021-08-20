@@ -6,7 +6,7 @@ from solver import Solver
 
 class CplexSolver(Solver):
 
-    def solve(self, x0, x_opt, f_opt):
+    def solve(self, x0, x_opt=None, f_opt=None):
         super().solve(x0, x_opt, f_opt)
         x = cvxpy.Variable(self.n)
         # x.value = x0
