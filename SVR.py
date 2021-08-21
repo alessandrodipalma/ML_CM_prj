@@ -2,14 +2,18 @@ import time
 from solver import Solver
 from svm import SVM, np
 from joblib import Parallel, delayed
+from swap_row_col import split_kernel, split_alpha, update_alpha, get_working_part, split_kernel_working
+from cvxopt import matrix, solvers
 
 class SVR(SVM):
 
-    def __init__(self, solver: Solver, exact_solver=None, kernel='rbf', C=1, eps=0.001, gamma='scale', degree=3):
+    def __init__(self, solver: Solver, exact_solver=None, decomp_solver:Solver=None, kernel='rbf', C=1, eps=0.001, gamma='scale', degree=3):
         super().__init__(solver, exact_solver, kernel, C, gamma, degree)
 
         self.eps = eps
         self.is_multi_output = False
+        self.decompose = False
+        self.decomp_solver = decomp_solver
 
     def train(self, x, d):
         if len(x) == len(d):
@@ -29,10 +33,14 @@ class SVR(SVM):
         if len(d.shape) == 1:
             self.x, self.support_alpha, self.d, self.bias, indexes = self.compute_alphas(K, d, n, x)
             return len(self.support_alpha), self.support_alpha, indexes
-        else: # train for each dimension
+        else:  # train for each dimension
             self.dimensions = []
             self.is_multi_output = True
-            self.dimensions = Parallel(n_jobs=2)(delayed(self.parallel_compute_alpha)(K, d, i, n, x) for i in range(d.shape[1]))
+            self.dimensions = Parallel(n_jobs=1, max_nbytes=None)(
+                delayed(self.parallel_compute_alpha)(K, d, i, n, x) for i in range(d.shape[1]))
+            # for i in range(d.shape[1]):
+            #     self.dimensions.append(self.parallel_compute_alpha(K, d, i, n, x))
+
             self.dimensions = sorted(self.dimensions, key=lambda k: k['i'])
             return self.dimensions
 
@@ -42,16 +50,18 @@ class SVR(SVM):
         return {
             'i': i,
             'x': support_x,
-             'support_alpha': support_alpha,
-             'd': des_out,
-             'bias': bias,
-             'indexes': support_indexes
-             }
+            'support_alpha': support_alpha,
+            'd': des_out,
+            'bias': bias,
+            'indexes': support_indexes
+        }
 
     def compute_alphas(self, K, d, n, x):
+
         alpha = self.solve_optimization(d, K)
         multipliers = alpha[:n] - alpha[n:]
         indexes = np.where(abs(multipliers) > (self.C * 1e-6))[0]
+
         # print("number of sv: ", len(indexes), )
 
         def single_predict(input):
@@ -66,6 +76,7 @@ class SVR(SVM):
                                                                    np.logical_and(a_star > 1e-6, a_star < self.C)))]
 
         bias = np.mean(selected_estimates_left)
+
         if self.verbose:
             print("bias {}".format(bias))
         x = x[indexes]
@@ -97,20 +108,90 @@ class SVR(SVM):
         y = np.append(np.full(n, 1.), np.full(n, -1.))
         e = np.full((1, 1), 0.)
 
+
+
         f_star = alpha_opt = None
         if self.exact_solver is not None:
             self.exact_solver.define_quad_objective(G, q, l, u, y, e)
             alpha_opt, f_star, gradient = self.exact_solver.solve(x0=np.zeros(2 * n), x_opt=alpha_opt, f_opt=f_star)
 
         self.solver.define_quad_objective(G, q, l, u, y, e)
-        start_time = time.time()
-        alpha, f_star, gradient = self.solver.solve(x0=np.zeros(2 * n), x_opt=alpha_opt, f_opt=f_star)
-        end_time = time.time() - start_time
 
-        if self.verbose:
-            print("took {} to solve".format(end_time))
-        # input()
-        return alpha
+        if self.decompose:
+            nsp = 128
+            alpha = np.zeros(2 * n)
+
+            def subproblem(k, alpha, working_indexes = None):
+                if working_indexes is None:
+                    qbb, qnb, qnn = split_kernel(Q, k * nsp, (k + 1) * nsp)
+
+                    xb, xn = split_alpha(alpha, k * nsp, (k + 1) * nsp)
+                    yb, yn = split_alpha(y, k * nsp, (k + 1) * nsp)
+                    qb, qn = split_alpha(q, k * nsp, (k + 1) * nsp)
+                    lb, ln = split_alpha(l, k * nsp, (k + 1) * nsp)
+                    ub, un = split_alpha(u, k * nsp, (k + 1) * nsp)
+
+                    Gbb = np.block([[qbb, -qbb], [-qbb, qbb]])
+                    Gbn = np.block([[qnb, -qnb], [-qnb, qnb]])
+                    eb = -yn @ xn
+                    self.decomp_solver.define_quad_objective(Gbb, Gbn.T @ xn + qb, lb, ub, yb, eb)
+                    print("solving for k=", k)
+                    xb, f_star, gradient = self.decomp_solver.solve(x0=xb)
+                    print("solved")
+                    return xb, k
+                else:
+                    print(Q.shape, working_indexes.shape)
+
+                    effective = np.unique(np.concatenate([working_indexes,working_indexes[:n]-n, working_indexes[n:]+n]))
+                    ind_for_kern = np.unique(np.concatenate([working_indexes[n:],working_indexes[:n]-n]))
+                    print(ind_for_kern.shape, effective.shape)
+                    qbb, qnb, qnn = split_kernel_working(Q, ind_for_kern)
+
+                    xb, xn = get_working_part(alpha, effective)
+                    yb, yn = get_working_part(y, effective)
+                    qb, qn = get_working_part(q, effective)
+                    lb, ln = get_working_part(l, effective)
+                    ub, un = get_working_part(u, effective)
+
+                    Gbb = np.block([[qbb, -qbb], [-qbb, qbb]])
+                    Gbn = np.block([[qnb, -qnb], [-qnb, qnb]])
+                    eb = -yn @ xn
+                    print(Gbn.shape, xb.shape, xn.shape, alpha.shape, qb.shape)
+                    self.decomp_solver.define_quad_objective(Gbb, Gbn.T @ xn + qb, lb, ub, yb, eb)
+                    xb, f_star, gradient = self.decomp_solver.solve(x0=xb)
+                    return xb, working_indexes
+
+            working_indexes = None
+            iter = 0
+            while self.solver.grad_norm(alpha) > self.solver.tol and iter <2:
+                print("gradient: ",)
+                if working_indexes is None:
+                    xbs = Parallel(n_jobs=4, max_nbytes=None)(
+                        delayed(subproblem)(k, alpha) for k in range(int(n / nsp)))
+                    for xb, k in xbs:
+                        print(alpha.shape)
+                        alpha = update_alpha(alpha, xb, k * nsp, (k + 1) * nsp)
+                        print(alpha.shape)
+                else:
+                    xb, working_indexes = subproblem(0, alpha, working_indexes)
+                    alpha[working_indexes] = xb
+
+                working_indexes = np.where(alpha > 1e-6)[0]
+                iter +=1
+            # print(alpha)
+            print("gradient: ", self.solver.grad_norm(alpha))
+
+            return alpha
+        else:
+
+            start_time = time.time()
+            alpha, f_star, gradient = self.solver.solve(x0=np.zeros(2 * n), x_opt=alpha_opt, f_opt=f_star)
+            end_time = time.time() - start_time
+
+            if self.verbose:
+                print("took {} to solve".format(end_time))
+            # input()
+            return alpha
 
     def compute_out(self, x):
         if self.is_multi_output:
@@ -125,7 +206,8 @@ class SVR(SVM):
     def single_output_predition(self, x, support_alpha, sv, bias):
         f = lambda i: support_alpha[i] * self.kernel(x, sv[i])
         out = np.sum(np.array(list(map(f, np.arange(len(support_alpha)))))) \
-              + bias
+              # + bias
+
         return out
 
     def predict(self, x):

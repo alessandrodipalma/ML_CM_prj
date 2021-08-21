@@ -3,7 +3,7 @@ from sklearn.model_selection import train_test_split
 import numpy as np
 
 from SVR import SVR
-from sklearn.metrics import mean_squared_error as mse, mean_absolute_error as mae
+from sklearn.metrics import mean_squared_error as mse, euclidean_distances, mean_absolute_error as mae
 from sklearn import svm, preprocessing
 
 from gvpm import GVPM
@@ -20,10 +20,10 @@ print(y)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33)
 
 C = 3
-kernel = 'poly'
+kernel = 'rbf'
 eps = 0.1
 gamma = 'scale'
-tol = 1e-3
+tol = 1e-7
 
 ls = GVPM.LineSearches.BACKTRACK
 

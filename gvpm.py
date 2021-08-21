@@ -1,6 +1,6 @@
 import time
 
-import cvxpy
+# import cvxpy
 import numpy as np
 from matplotlib import pyplot as plt
 from numpy.linalg import norm, matrix_power
@@ -130,14 +130,18 @@ class GVPM(Solver):
             # solver.plot_xtory()
             return xp
         else:
-            x_p = cvxpy.Variable(self.n)
-            objective = cvxpy.Minimize((1 / 2) * cvxpy.quad_form(x_p, np.identity(self.n)) + x.T @ x_p)
-            constraints = [x_p >= self.left_constr[0], x_p <= self.right_constr[0], self.y.T @ x_p == 0]
-            problem = cvxpy.Problem(objective, constraints)
-            problem.solve(verbose=True, solver="CPLEX", cplex_params={
-                "barrier.convergetol": self.projection_tol
-            })
-            return np.array(x_p.value)
+            pass
+            # x_p = cvxpy.Variable(self.n)
+            # objective = cvxpy.Minimize((1 / 2) * cvxpy.quad_form(x_p, np.identity(self.n)) + x.T @ x_p)
+            # constraints = [x_p >= self.left_constr[0], x_p <= self.right_constr[0], self.y.T @ x_p == 0]
+            # problem = cvxpy.Problem(objective, constraints)
+            # problem.solve(verbose=True, solver="CPLEX", cplex_params={
+            #     "barrier.convergetol": self.projection_tol
+            # })
+            # return np.array(x_p.value)
+
+    def grad_norm(self, x):
+        return norm(self._project(x - self.df(x)) - x)
 
     def solve(self, x0, x_opt=None, f_opt=None):
         super().solve(x0, x_opt, f_opt)
