@@ -9,7 +9,7 @@ from SVR import SVR
 from gvpm import GVPM
 from utils import plot_error
 
-basedir =  '../'
+basedir =  ''
 def load_cup_train():
     df = pd.read_csv(basedir + 'monk/ML-CUP20-TR.csv')
     x = df.iloc[:, 1:].to_numpy()
@@ -21,6 +21,10 @@ def load_cup_test():
     df = pd.read_csv(basedir+'monk/ML-CUP20-TS.csv')
     x = df.iloc[:, 1:].to_numpy()
     return x
+
+
+print(np.max(load_cup_train()[1]), np.min(load_cup_train()[1]))
+print(np.std(load_cup_train()[1][:,1]), np.var(load_cup_train()[1]))
 
 #
 # X, y = load_cup_train()

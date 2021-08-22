@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from joblib import Parallel, delayed
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 from tabulate import tabulate
 
 from gvpm import GVPM
@@ -14,12 +15,17 @@ def experiment(monk_n, kernel, gamma, degree, C, tol):
     X_train_all, y_train_all = load_monk(monk_n, 'train')
     X_test, y_test = load_monk(monk_n, 'test')
 
-    epochs = 15
+    scaler = StandardScaler()
+    X_train_all = scaler.fit_transform(X_train_all)
+    X_test = scaler.transform(X_test)
     train_acc = []
     test_acc = []
     train_mse = []
     test_mse = []
+
+    epochs = 15
     for k in range(epochs):
+
         bs = int(len(X_train_all)/epochs) * (k+1)
         print("samples", bs)
         X_train = X_train_all[:bs]
@@ -64,10 +70,10 @@ def experiment(monk_n, kernel, gamma, degree, C, tol):
     axs[1].legend()
     axs[1].set_xlabel("samples")
     axs[1].set_ylabel("mse")
-    plt.savefig("plots/best_monk/monk_{}_learning_curve.png".format(monk_n))
+    plt.savefig("plots/best_monk/scaled_monk_{}_learning_curve.png".format(monk_n))
 
     return monk_n, kernel, gamma, degree, C, tol, train_mse, test_mse, train_acc, test_acc
 
-experiment(1, "poly", 'scale', 3, 100, 1e-3)
+# experiment(1, "poly", 'scale', 3, 100, 1e-3)
 experiment(2, 'rbf','auto',1,50,1e-1)
-experiment(3, 'poly','scale',5,10,1e-1)
+# experiment(3, 'poly','scale',5,10,1e-1)

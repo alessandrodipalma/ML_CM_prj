@@ -6,6 +6,8 @@ from tabulate import tabulate
 
 from SVR import SVR
 from sklearn.metrics import mean_squared_error as mse, mean_absolute_error as mae, euclidean_distances
+
+from experiments.ZeroOneScaler import Scaler
 from gvpm import GVPM
 from load_cup_ds import load_cup_train
 from sklearn.model_selection import KFold
@@ -29,10 +31,8 @@ def experiment(C, eps, kernel, gamma, degree, tol):
         y_train = y[train, :]
         X_test = X[test, :]
         y_test = y[test, :]
-        print(X_train.shape, X_test.shape, y_train.shape, y_test.shape)
-        y_scaler = preprocessing.StandardScaler().fit(y_train)
-        y_train = y_scaler.transform(y_train)
-        y_test = y_scaler.transform(y_test)
+        y_scaler = Scaler()
+        y_train = y_scaler.bring_in_zeroone(y_train)
 
         solver = GVPM(ls=GVPM.LineSearches.BACKTRACK, n_min=3, tol=tol, lam_low=1e-3, plots=False, proj_tol=1e-3)
         model = SVR(solver=solver, C=C, kernel=kernel, eps=eps, gamma=gamma, degree=degree)
@@ -40,6 +40,10 @@ def experiment(C, eps, kernel, gamma, degree, tol):
             model.train(X_train, y_train)
             pred_train = model.predict(X_train)
             pred_test = model.predict(X_test)
+
+            pred_train = y_scaler.revert_scaling(pred_train)
+            pred_test = y_scaler.revert_scaling(pred_test)
+            y_train = y_scaler.revert_scaling(y_train)
 
             train_err.append(mse(y_train, pred_train))
             test_err.append(mse(y_test, pred_test))

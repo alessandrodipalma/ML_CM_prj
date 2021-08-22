@@ -1,6 +1,7 @@
 import numpy as np
 from joblib import Parallel, delayed
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 from tabulate import tabulate
 
 from gvpm import GVPM
@@ -12,6 +13,10 @@ from sklearn.metrics import mean_squared_error as mse, accuracy_score
 def experiment(monk_n, kernel, gamma, degree, C, tol, data_used=1):
     X_train, y_train = load_monk(monk_n, 'train')
     X_test, y_test = load_monk(monk_n, 'test')
+    scaler = StandardScaler()
+
+    X_train = scaler.fit_transform(X_train)
+    X_test = scaler.transform(X_test)
 
     if data_used < 1:
         X_train, _, y_train, _ = train_test_split(X_train, y_train, test_size=data_used, random_state=42)
