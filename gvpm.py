@@ -41,7 +41,7 @@ class GVPM(Solver):
 
     def __init__(self, ls=LineSearches.EXACT, a_min=1e-5, a_max=1e5, n_min=3, lam_low=1e-3, lam_upp=1, max_iter=100,
                  tol=1e-3,
-                 verbose=False, proj_tol=1e-8, plots=True, fixed_lambda=None, fixed_alpha=None, stopping_rule=StoppingRules.gradient):
+                 verbose=False, proj_tol=1e-8, plots=True, fixed_lambda=None, fixed_alpha=None, stopping_rule=StoppingRules.gradient, checkpointing = False):
         """
 
         :param a_min:
@@ -71,7 +71,7 @@ class GVPM(Solver):
 
         self.stopping_rule = stopping_rule
 
-        self.checkpoints = False
+        self.checkpointing = checkpointing
 
     def _update_rule_1(self, d):
         return self.d_norm ** 2 / self.dQd
@@ -200,7 +200,7 @@ class GVPM(Solver):
         elif self.stopping_rule == 'd':
             stop = lambda: self.d_norm < self.tol
 
-        if self.checkpoints:
+        if self.checkpointing:
             tols = [1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8]
             tol_index = 0
             self.tol = tols[tol_index]
@@ -261,7 +261,7 @@ class GVPM(Solver):
             # Stopping criterions
 
             if stop():
-                if self.checkpoints:
+                if self.checkpointing:
                     self.checkpoints[self.tol] = {'it': k, 'gap':f_gaps[-1]}
                     tol_index += 1
                     if tol_index > len(tols) -1 :
