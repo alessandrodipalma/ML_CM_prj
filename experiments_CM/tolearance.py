@@ -104,4 +104,6 @@ for stopping_rule in GVPM.StoppingRules.values:
     plt.savefig(out_dir + "{}_tol.png".format(stopping_rule))
     with open(out_dir + "table_{}.txt".format(stopping_rule), "w", encoding="utf-8") as out_file:
         out_file.write(tabulate([r.values() for r in table], table[0].keys(), tablefmt='latex', floatfmt=".2e"))
+    with open(out_dir + "table_{}.csv".format(stopping_rule), "w", encoding="utf-8") as out_file:
+        out_file.write(tabulate([r.values() for r in table], table[0].keys(), tablefmt='tsb', floatfmt=".2e"))
 
