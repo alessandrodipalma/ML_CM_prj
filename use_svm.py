@@ -1,16 +1,12 @@
-from matplotlib import pyplot as plt
-from sklearn.datasets import make_classification
-from sklearn.model_selection import train_test_split
 import numpy as np
 
-from gvpm import GVPM
-from load_monk import load_monk
-from svm import SVM
-from sklearn.metrics import mean_squared_error as mse
+from GVPM import GVPM
+from experiments_ML.load_monk import load_monk
+from SVM import SVM
 from sklearn.metrics import accuracy_score
 from sklearn.svm import SVC
 
-from utils import plot_error, plot_sv_number
+from utils import plot_error
 
 np.random.seed(42)
 # n_features = 10

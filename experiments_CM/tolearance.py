@@ -11,7 +11,7 @@ from tabulate import tabulate
 
 from Cplex_Solver import CplexSolver
 from SVR import SVR
-from gvpm import GVPM
+from GVPM import GVPM
 
 
 feature_samples_dict = [

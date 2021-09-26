@@ -1,11 +1,8 @@
 import numpy as np
-from sklearn import preprocessing
-
-from gvpm import GVPM
-from solver import Solver
+from Solver import Solver
 
 
-class  SVM:
+class SVM:
     KERNELS = {'rbf': 'rbf', 'poly': 'poly', 'linear': 'linear'}
 
     # TODO labels with 0 value, or 0 data results in singular contraints matrix, should be fixed
@@ -22,7 +19,6 @@ class  SVM:
         self.solver = solver
         self.exact_solver = exact_solver
         self.verbose = False
-
 
     def create_rbf_kernel(self):
         # print("Rbf kernel with sigma = {}".format(gamma))
@@ -46,7 +42,7 @@ class  SVM:
     # def compute_gaussian_k(self, x, gamma):
     #
 
-    def compute_K(self, x):
+    def compute_kernel_matrix(self, x):
         n = len(x)
         self.K = np.empty((n, n))
         for i in range(n):
@@ -70,7 +66,7 @@ class  SVM:
         elif self.gamma == 'scale':
             self.gamma_value = 1 / (n * x.var())
 
-        K = self.compute_K(x)
+        K = self.compute_kernel_matrix(x)
         # print("Kernel:", K)
         Q = np.empty(K.shape)
 
@@ -115,7 +111,7 @@ class  SVM:
         l = np.full(n, 0.)
         u = np.full(n, float(self.C))
 
-        self.solver.define_quad_objective(Q, q, l, u,d, 0)
+        self.solver.define_quad_objective(Q, q, l, u, d, 0)
         alpha = self.solver.solve(x0=np.full(n, self.C / 2))[0]
         return alpha
 

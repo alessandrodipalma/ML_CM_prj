@@ -6,7 +6,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.multioutput import MultiOutputRegressor
 from sklearn.metrics import mean_squared_error as mse, euclidean_distances
 from SVR import SVR
-from gvpm import GVPM
+from GVPM import GVPM
 from utils import plot_error
 
 basedir =  ''

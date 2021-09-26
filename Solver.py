@@ -3,13 +3,11 @@ from numpy.linalg import matrix_power
 
 class Solver:
 
-
     def __init__(self, max_iter=100, tol=1e-3, verbose=False):
         self.max_iter = max_iter
         self.tol = tol
         self.verbose = verbose
         self._objective_defined = False
-
 
     def define_quad_objective(self, Q, q, left_constr, right_constr, y, b):
         """

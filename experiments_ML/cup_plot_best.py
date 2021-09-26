@@ -6,8 +6,8 @@ from SVR import SVR
 from sklearn.metrics import mean_squared_error as mse, mean_absolute_error as mae, euclidean_distances
 
 from experiments_ML.ZeroOneScaler import Scaler
-from gvpm import GVPM
-from load_cup_ds import load_cup_train
+from GVPM import GVPM
+from experiments_ML.load_cup_ds import load_cup_train
 
 X_all, y_all = load_cup_train()
 X_all = preprocessing.StandardScaler().fit(X_all).transform(X_all)

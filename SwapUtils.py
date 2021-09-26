@@ -14,13 +14,16 @@ def bring_to_top(matrix, start, end):
     matrix[:, orig] = matrix[:, moved]
     return matrix
 
+
 def swap_indexes(matrix, from_where, to_where):
     matrix[[from_where, to_where], :] = matrix[[to_where, from_where], :]
     matrix[:, [from_where, to_where]] = matrix[:, [to_where, from_where]]
     return matrix
 
+
 def swap_row_col(matrix, from_w, to_w):
     matrix = swap_indexes(matrix, from_w, to_w)
+
 
 def split_kernel(matrix, qbb_start, qbb_end):
     matrix = bring_to_top(matrix, qbb_start, qbb_end)
@@ -30,16 +33,20 @@ def split_kernel(matrix, qbb_start, qbb_end):
 
     return qbb, qnb, qnn
 
+
 def split_kernel_working(matrix, working_indexes):
     matrix = move_forward(matrix, working_indexes)
     matrix = split_kernel(matrix, 0, len(working_indexes))
     return matrix
+
+
 def move_forward(matrix, indexes):
     for from_w, to_w in enumerate(indexes):
         matrix = swap_indexes(matrix, from_w, to_w)
     return matrix
 
-def get_working_part (array, working_indexes):
+
+def get_working_part(array, working_indexes):
     xb = array[working_indexes]
     xn = np.delete(array, working_indexes, axis=0)
     return xb, xn
@@ -77,11 +84,11 @@ def update_alpha(x, xb, qbb_start, qbb_end):
 # print(Qnb)
 # print(Qnn)
 
-x = np.array(list(range(10)) + list(range(10)))
-
-xb, xn = get_working_part(x, [5, 8])
-print(xb)
-print(xn)
+# x = np.array(list(range(10)) + list(range(10)))
+#
+# xb, xn = get_working_part(x, [5, 8])
+# print(xb)
+# print(xn)
 
 # nsp = 3
 # x = np.array(list(range(10)) + list(range(10)))

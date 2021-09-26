@@ -11,7 +11,7 @@ from tabulate import tabulate
 
 from Cplex_Solver import CplexSolver
 from SVR import SVR
-from gvpm import GVPM
+from GVPM import GVPM
 from utils import generate_regression_from_feature_sample_dict
 
 feature_samples_dict = [{'features': 10, 'samples': 200},

@@ -6,7 +6,7 @@ from SVR import SVR
 from sklearn.metrics import mean_squared_error as mse, euclidean_distances, mean_absolute_error as mae
 from sklearn import svm, preprocessing
 
-from gvpm import GVPM
+from GVPM import GVPM
 from utils import plot_error, plot_sv_number
 
 np.random.seed(42)

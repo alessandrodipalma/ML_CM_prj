@@ -1,8 +1,8 @@
 import time
-from solver import Solver
-from svm import SVM, np
+from Solver import Solver
+from SVM import SVM, np
 from joblib import Parallel, delayed
-from swap_row_col import split_kernel, split_alpha, update_alpha, get_working_part, split_kernel_working
+from SwapUtils import split_kernel, split_alpha, update_alpha, get_working_part, split_kernel_working
 from cvxopt import matrix, solvers
 
 class SVR(SVM):
@@ -28,7 +28,7 @@ class SVR(SVM):
             self.gamma_value = 1 / (n * x.var())
         # print("training with x={}, d={}".format(x,d))
 
-        K = self.compute_K(x)
+        K = self.compute_kernel_matrix(x)
         print(d.shape, len(d.shape))
         if len(d.shape) == 1:
             self.x, self.support_alpha, self.d, self.bias, indexes = self.compute_alphas(K, d, n, x)

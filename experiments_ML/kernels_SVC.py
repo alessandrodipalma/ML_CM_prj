@@ -3,7 +3,7 @@ from sklearn.datasets import make_classification
 from sklearn.model_selection import train_test_split
 
 from utils import plot_error
-from svm import SVM
+from SVM import SVM
 from sklearn.metrics import mean_squared_error as mse
 from sklearn.svm import SVC
 

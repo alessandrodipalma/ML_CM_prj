@@ -1,7 +1,7 @@
 import cvxpy
 import numpy
 
-from solver import Solver
+from Solver import Solver
 
 
 class CplexSolver(Solver):

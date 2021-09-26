@@ -5,9 +5,9 @@ import numpy as np
 from matplotlib import pyplot as plt
 from numpy.linalg import norm, matrix_power
 
-from line_search import backtracking_armijo_ls
-from knapsack_secant import dai_fletch_a1
-from solver import Solver
+from LineSearches import backtracking_armijo_ls
+from DaiFletcher import DaiFletcher
+from Solver import Solver
 
 
 class GVPM(Solver):
@@ -124,8 +124,8 @@ class GVPM(Solver):
 
     def _project(self, x, solver='dai_fletch'):
         if solver == 'dai_fletch':
-            solver = dai_fletch_a1(self.left_constr, self.right_constr,
-                                   self.y, self.b, np.identity(self.n), x)
+            solver = DaiFletcher(self.left_constr, self.right_constr,
+                                 self.y, self.b, np.identity(self.n), x)
             xp = solver.solve(lam_i=1, d_lam=2, eps=self.projection_tol)
             # solver.plot_xtory()
             return xp

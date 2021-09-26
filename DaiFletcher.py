@@ -3,7 +3,7 @@ from matplotlib import pyplot as plt
 from numpy.linalg import norm
 
 
-class dai_fletch_a1:
+class DaiFletcher:
 
     def __init__(self, l, u, a, b, A, c, verbose=False):
         """

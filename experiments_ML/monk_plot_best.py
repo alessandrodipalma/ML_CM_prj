@@ -1,13 +1,10 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from joblib import Parallel, delayed
-from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-from tabulate import tabulate
 
-from gvpm import GVPM
-from load_monk import load_monk
-from svm import SVM
+from GVPM import GVPM
+from experiments_ML.load_monk import load_monk
+from SVM import SVM
 from sklearn.metrics import mean_squared_error as mse, accuracy_score
 
 
