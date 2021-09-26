@@ -24,7 +24,7 @@ C = 100
 kernel = 'poly'
 
 solver = GVPM(ls=GVPM.LineSearches.BACKTRACK, n_min=2, tol=1e-3, lam_low=1e-3, plots=False, proj_tol=1e-3)
-model = SVM(solver = solver,
+model = SVM(solver=solver,
             # exact_solver=CplexSolver(tol=tol, verbose=False),
             C=C, kernel=kernel, gamma="auto", degree=9)
 train_err = []
@@ -66,5 +66,3 @@ for i in range(0, int(len(X_train) / batch_size)):
 
 plot_error(train_err, test_err, "mySVM " + kernel)
 plot_error(train_err_sota, test_err_sota, "sklearn " + kernel)
-# plot_sv_number(sv)
-# plot_sv_number(sv_sota)

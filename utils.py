@@ -1,7 +1,6 @@
 from matplotlib import pyplot as plt
 from sklearn import preprocessing
 from sklearn.datasets import make_regression
-from sklearn.model_selection import train_test_split
 
 
 def plot_error(train, test, title=""):
@@ -13,15 +12,15 @@ def plot_error(train, test, title=""):
     # plt.yscale('log')
     plt.show()
 
-def plot_sv_number(sv):
 
+def plot_sv_number(sv):
     plt.plot(range(0, len(sv)), sv, c='b', label='train')
     plt.title('number of support vectors')
     plt.show()
 
 
 def generate_regression_from_feature_sample_dict(feature_samples_dict, n_problems, fixed_rs=None):
-    all_problems=[]
+    all_problems = []
     for i, d in enumerate(feature_samples_dict):
         problems = []
         for j in range(n_problems):

@@ -27,7 +27,7 @@ class GVPM(Solver):
         x = 'x'
         gradient = 'd'
         relative_gap = 'f'
-        values = [x,gradient,relative_gap]
+        values = [x, gradient, relative_gap]
 
     class Plots:
         GAP = 'gap'
@@ -41,7 +41,8 @@ class GVPM(Solver):
 
     def __init__(self, ls=LineSearches.EXACT, a_min=1e-5, a_max=1e5, n_min=3, lam_low=1e-3, lam_upp=1, max_iter=100,
                  tol=1e-3,
-                 verbose=False, proj_tol=1e-8, plots=True, fixed_lambda=None, fixed_alpha=None, stopping_rule=StoppingRules.gradient, checkpointing = False):
+                 verbose=False, proj_tol=1e-8, plots=True, fixed_lambda=None, fixed_alpha=None,
+                 stopping_rule=StoppingRules.gradient, checkpointing=False):
         """
 
         :param a_min:
@@ -105,7 +106,7 @@ class GVPM(Solver):
         k = 0
         if self.fixed_lambda is None:
             if self.ls == self.LineSearches.EXACT:
-                l_new = abs(self.d_norm**2 / self.dQd)
+                l_new = abs(self.d_norm ** 2 / self.dQd)
             elif self.ls == self.LineSearches.BACKTRACK:
                 l_new, it = backtracking_armijo_ls(self.f, self.df, x, d, alpha_min=self.lam_low)
                 k += it
@@ -243,15 +244,12 @@ class GVPM(Solver):
 
             if self.plots:
 
-
                 a_s.append(a)
 
                 if x_opt is not None:
                     upper_bounds_gap.append(
                         (eig_max_Q * (norm(x - x_opt) - ds[-1]) + (2 / self.a_min) * ds[-1]) * (
                                 norm(x - x_opt) + ds[-1]))
-
-
 
                 if x_opt is not None:
                     mu_rate.append(norm(x - x_opt) / norm(x_prec - x_opt))
@@ -262,9 +260,9 @@ class GVPM(Solver):
 
             if stop():
                 if self.checkpointing:
-                    self.checkpoints[self.tol] = {'it': k, 'gap':f_gaps[-1]}
+                    self.checkpoints[self.tol] = {'it': k, 'gap': f_gaps[-1]}
                     tol_index += 1
-                    if tol_index > len(tols) -1 :
+                    if tol_index > len(tols) - 1:
                         if self.verbose:
                             print("Optimal solution found")
                         break
@@ -273,7 +271,6 @@ class GVPM(Solver):
                     if self.verbose:
                         print("Optimal solution found")
                     break
-
 
             # Update stepsize
             if self.fixed_alpha is None:

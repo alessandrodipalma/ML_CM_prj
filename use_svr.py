@@ -1,13 +1,12 @@
-from sklearn.datasets import make_regression
-from sklearn.model_selection import train_test_split
 import numpy as np
-
-from SVR import SVR
-from sklearn.metrics import mean_squared_error as mse, euclidean_distances, mean_absolute_error as mae
 from sklearn import svm, preprocessing
+from sklearn.datasets import make_regression
+from sklearn.metrics import mean_squared_error as mse
+from sklearn.model_selection import train_test_split
 
 from GVPM import GVPM
-from utils import plot_error, plot_sv_number
+from SVR import SVR
+from utils import plot_error
 
 np.random.seed(42)
 n_features = 5
@@ -28,7 +27,7 @@ tol = 1e-7
 ls = GVPM.LineSearches.BACKTRACK
 
 solver = GVPM(ls=ls, n_min=2, tol=tol, lam_low=1e-3, plots=False, proj_tol=1e-8)
-model = SVR(solver = solver,
+model = SVR(solver=solver,
             # exact_solver=CplexSolver(tol=tol, verbose=False),
             C=C, kernel=kernel, eps=eps, gamma=gamma)
 train_err = []
