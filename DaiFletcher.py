@@ -25,7 +25,7 @@ class DaiFletcher:
         self.xtory = []
         self.verbose = verbose
 
-        # print("solving knapsack with a = {} \n b = {} \n d = {}".format(self.a, self.b, self.d))
+        if self.verbose: print("solving knapsack with a = {} \n b = {} \n d = {}".format(self.a, self.b, self.d))
 
     def _bracketing(self, lam=0, d_lam=2, eps=1e-6):
         r = self.compute_r(lam)

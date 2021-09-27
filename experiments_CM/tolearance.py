@@ -13,21 +13,19 @@ from Cplex_Solver import CplexSolver
 from SVR import SVR
 from GVPM import GVPM
 
-
 feature_samples_dict = [
-                        {'features': 10, 'samples': 200},
-                        {'features': 50, 'samples': 200},
-                        {'features': 100, 'samples': 200},
-                        {'features': 200, 'samples': 200},
-                        {'features': 400, 'samples': 200},
-                        {'features': 100, 'samples': 500},
-                        # {'features': 800, 'samples': 200},
-                        # {'features': 100, 'samples': 200},
-
-                        # {'features': 100, 'samples': 1000},
-                        # {'features': 300, 'samples': 1000},
-                        # {'features': 500, 'samples': 2000},
-                        ]
+    {'features': 10, 'samples': 200},
+    {'features': 50, 'samples': 200},
+    {'features': 100, 'samples': 200},
+    {'features': 200, 'samples': 200},
+    {'features': 400, 'samples': 200},
+    {'features': 100, 'samples': 500},
+    # {'features': 800, 'samples': 200},
+    # {'features': 100, 'samples': 200},
+    # {'features': 100, 'samples': 1000},
+    # {'features': 300, 'samples': 1000},
+    # {'features': 500, 'samples': 2000},
+]
 out_dir = "./plots/tolerance/"
 # os.mkdir("./plots")
 # os.mkdir("./plots/n_min/")
@@ -53,7 +51,6 @@ for stopping_rule in GVPM.StoppingRules.values:
         gamma = 'scale'
         # tol = 1e-5
         ls = GVPM.LineSearches.BACKTRACK
-
 
         histories = {}
 
@@ -100,10 +97,9 @@ for stopping_rule in GVPM.StoppingRules.values:
 
         table.append(row)
 
-    # plt.show()
-    plt.savefig(out_dir + "{}_tol.png".format(stopping_rule))
-    with open(out_dir + "table_{}.txt".format(stopping_rule), "w", encoding="utf-8") as out_file:
-        out_file.write(tabulate([r.values() for r in table], table[0].keys(), tablefmt='latex', floatfmt=".2e"))
-    with open(out_dir + "table_{}.csv".format(stopping_rule), "w", encoding="utf-8") as out_file:
-        out_file.write(tabulate([r.values() for r in table], table[0].keys(), tablefmt='tsb', floatfmt=".2e"))
-
+    plt.show()
+    # plt.savefig(out_dir + "{}_tol.png".format(stopping_rule))
+    # with open(out_dir + "table_{}.txt".format(stopping_rule), "w", encoding="utf-8") as out_file:
+    #     out_file.write(tabulate([r.values() for r in table], table[0].keys(), tablefmt='latex', floatfmt=".2e"))
+    # with open(out_dir + "table_{}.csv".format(stopping_rule), "w", encoding="utf-8") as out_file:
+    #     out_file.write(tabulate([r.values() for r in table], table[0].keys(), tablefmt='tsb', floatfmt=".2e"))

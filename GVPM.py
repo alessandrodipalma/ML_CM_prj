@@ -40,18 +40,26 @@ class GVPM(Solver):
         ESTIMATE_RATE = 'est_rate'
 
     def __init__(self, ls=LineSearches.EXACT, a_min=1e-5, a_max=1e5, n_min=3, lam_low=1e-3, lam_upp=1, max_iter=100,
-                 tol=1e-3,
+                 stopping_rule=StoppingRules.gradient, tol=1e-3,
                  verbose=False, proj_tol=1e-8, plots=True, fixed_lambda=None, fixed_alpha=None,
-                 stopping_rule=StoppingRules.gradient, checkpointing=False):
+                 checkpointing=False):
         """
 
-        :param a_min:
-        :param a_max:
-        :param n_min:
-        :param lam_low:
-        :param lam_upp:
-
-
+        :param ls: Line search strategy. Choose from one available in GVPM.Linesearches.values
+        :param a_min: Minimum value for the gradient scaling factor before the projection
+        :param a_max: Maximum value for the gradient scaling factor before the projection
+        :param n_min: Minimum number of iterates with the same update rule
+        :param lam_low: Lower bound for the stepsize
+        :param lam_upp: Upper bound for the stepsize
+        :param max_iter: Maximum number of GVPM iterates
+        :param stopping_rule: Stopping rule. Chose one from GVPM.StoppingRules
+        :param tol: requested tolerance for the chosen stopping rule. The behaviour can vary wrt the chosen stopping rule.
+        :param verbose: Boolean that enables or disables the prompts from the algorithm.
+        :param proj_tol: Requested precision on the solution of the projection subproblem.
+        :param plots: Boolean that enables plotting.
+        :param fixed_lambda: If specified, the lam_upp and lam_low params will be ignored and the stepsize will be fixed.
+        :param fixed_alpha: If specified, the a_min and a_max params will be ignored and the projection scaling factor will be fixes.
+        :param checkpointing: The algorithm runs with tol = 1e-08. Creates a dictionary in which are stored the f value and the iterate number at each order of magnitude.
         """
 
         super().__init__(max_iter, tol, verbose)
@@ -74,14 +82,14 @@ class GVPM(Solver):
 
         self.checkpointing = checkpointing
 
-    def _update_rule_1(self, d):
+    def _update_rule_1(self):
         return self.d_norm ** 2 / self.dQd
 
     def _update_rule_2(self, d):
         return self.dQd / (d.T @ self.Q_square @ d)
 
     def _select_updating_rule(self, d, a, lam):
-        a_new = {1: self._update_rule_1(d), 2: self._update_rule_2(d)}
+        a_new = {1: self._update_rule_1(), 2: self._update_rule_2(d)}
 
         if self.rule_iter > self.n_min:
             if self.rule_iter > self.n_max or self._is_steplength_separator(a, a_new) or \
@@ -131,6 +139,7 @@ class GVPM(Solver):
             # solver.plot_xtory()
             return xp
         else:
+            print("other inner projection method not implemented yet")
             pass
             # x_p = cvxpy.Variable(self.n)
             # objective = cvxpy.Minimize((1 / 2) * cvxpy.quad_form(x_p, np.identity(self.n)) + x.T @ x_p)

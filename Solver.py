@@ -4,6 +4,12 @@ from numpy.linalg import matrix_power
 class Solver:
 
     def __init__(self, max_iter=100, tol=1e-3, verbose=False):
+        """
+
+        :param max_iter: Maximum iterates number
+        :param tol: Sensitivity of the stopping criterion
+        :param verbose: Enables the algorithm prompting
+        """
         self.max_iter = max_iter
         self.tol = tol
         self.verbose = verbose
@@ -36,6 +42,13 @@ class Solver:
         self._objective_defined = True
 
     def solve(self, x0, x_opt=None, f_opt=None) -> tuple:
+        """
+
+        :param x0: starting point
+        :param x_opt: Optimal value of x
+        :param f_opt: Optimal objective function value
+        :return:
+        """
         if not self._objective_defined:
             raise Exception("Must define objective function first")
 

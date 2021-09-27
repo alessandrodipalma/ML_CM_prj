@@ -5,42 +5,47 @@ from Solver import Solver
 class SVM:
     KERNELS = {'rbf': 'rbf', 'poly': 'poly', 'linear': 'linear'}
 
-    # TODO labels with 0 value, or 0 data results in singular contraints matrix, should be fixed
-    def __init__(self, solver: Solver, exact_solver=None, kernel='rbf', C=1.0, gamma='scale', degree=3):
+    def __init__(self, solver: Solver, exact_solver=None, kernel='rbf', C=1.0, gamma='scale', degree=3, verbose=False):
         """
 
-        :type C: float
+        :param solver: Inner solver for the optimization problem.
+        :param exact_solver: Exact solver, should be used to verify or compare the results coming from the specified solver.
+        :param kernel: Kernel type. the value should be taken from SVM.KERNELS.values
+        :param C: Regularization parameter for the SVM problem
+        :param gamma: Specify the gamma value for the rbf kernel. The parameter is ignored if kernel != "rbf"
+        :param degree: Specify the degree for the polynomial kernel. The parameter is ignored if kernel != "poly"
+        :param verbose: Enable prompts from the algorithm.
         """
         self.kernel_name = kernel
-        self.kernel = self._select_kernel(kernel, gamma, degree)
+        self.verbose = verbose
+        self.kernel = self._select_kernel(kernel)
         self.C = C
         self.gamma = gamma
         self.gamma_value = None
         self.solver = solver
         self.exact_solver = exact_solver
-        self.verbose = False
+
+        self.degree = degree
 
     def create_rbf_kernel(self):
-        # print("Rbf kernel with sigma = {}".format(gamma))
-
+        if self.verbose:
+            print("Rbf kernel with sigma = {}".format(self.gamma))
         return lambda x, y: np.exp(- self.gamma_value * np.square((np.linalg.norm(x - y))))
 
-    def create_poly_kernel(self, p):
-        print("Polinomial kernel with grade {}".format(p))
-        return lambda x, xi: (self.gamma_value * np.inner(x, xi) + 1) ** p
+    def create_poly_kernel(self):
+        if self.verbose:
+            print("Polinomial kernel with grade {}".format(self.degree))
+        return lambda x, xi: (self.gamma_value * np.inner(x, xi) + 1) ** self.degree
 
-    def _select_kernel(self, kernel, gamma, degree):
+    def _select_kernel(self, kernel):
         if kernel == SVM.KERNELS['rbf']:
             return self.create_rbf_kernel()
         elif kernel == SVM.KERNELS['poly']:
-            return self.create_poly_kernel(degree)
+            return self.create_poly_kernel()
         elif kernel == SVM.KERNELS['linear']:
             return self.create_poly_kernel(1)
         else:
             print("Not valid kernel name. Valid names are {}".format(SVM.KERNELS.values()))
-
-    # def compute_gaussian_k(self, x, gamma):
-    #
 
     def compute_kernel_matrix(self, x):
         n = len(x)
@@ -67,7 +72,6 @@ class SVM:
             self.gamma_value = 1 / (n * x.var())
 
         K = self.compute_kernel_matrix(x)
-        # print("Kernel:", K)
         Q = np.empty(K.shape)
 
         for i in range(n):
@@ -75,12 +79,8 @@ class SVM:
                 Q[i, j] = d[i] * d[j] * K[i, j]
 
         alpha = self.solve_optimization(d, Q)
-        print(alpha)
-        # alpha = LDBCQP(q=np.ones(n), Q=Q, u=np.full(len(x), self.C)).solve_quadratic()
-        # print("my = {}, frang = {}".format(alpha1, alpha))
         b = 0
         indexes = np.where(alpha > 1e-6)[0]
-        # print(alpha)
         for j in indexes:
             sum = 0
             for i in range(n):
@@ -101,10 +101,9 @@ class SVM:
     def solve_optimization(self, d, Q):
         """
 
-        :param C: regularization parameter
-        :param d: desired output
-        :param n: input vector dimension
-        :return:
+        :param d: Desired outputs vector
+        :param Q: Matrix of the quadratic problem
+        :return: Computed multipliers
         """
         n = Q.shape[0]
         q = - np.ones(n)
@@ -125,7 +124,9 @@ class SVM:
         return np.array(list(map(self.compute_out, x)))
 
     def predict(self, x):
-        # print("PREDICTING...\nalpha={}".format(self.alpha))
+        if self.verbose:
+            print("PREDICTING...\nalpha={}".format(self.alpha))
         out = self.parallel_predict(x)
-        # print(out)
+        if self.verbose:
+            print(out)
         return np.sign(out)

@@ -3,19 +3,36 @@ from Solver import Solver
 from SVM import SVM, np
 from joblib import Parallel, delayed
 from SwapUtils import split_kernel, split_alpha, update_alpha, get_working_part, split_kernel_working
-from cvxopt import matrix, solvers
+
 
 class SVR(SVM):
 
-    def __init__(self, solver: Solver, exact_solver=None, decomp_solver:Solver=None, kernel='rbf', C=1, eps=0.001, gamma='scale', degree=3):
-        super().__init__(solver, exact_solver, kernel, C, gamma, degree)
+    def __init__(self, solver: Solver, exact_solver=None, decomp_solver: Solver = None, kernel='rbf', C=1, eps=0.001,
+                 gamma='scale', degree=3):
+        """
+        :param solver: Inner solver for the optimization problem.
+        :param exact_solver: Exact solver, should be used to verify or compare the results coming from the specified solver.
+        :param decomp_solver: Solver for the SVR decomposition.
+        :param kernel: Kernel type. the value should be taken from SVM.KERNELS.values
+        :param C: Regularization parameter for the SVM problem
+        :param eps: Epsilon parameter for the SVR problem.
+        :param gamma: Specify the gamma value for the rbf kernel. The parameter is ignored if kernel != "rbf"
+        :param degree: Specify the degree for the polynomial kernel. The parameter is ignored if kernel != "poly"
+        """
 
+        super().__init__(solver, exact_solver, kernel, C, gamma, degree)
         self.eps = eps
         self.is_multi_output = False
         self.decompose = False
         self.decomp_solver = decomp_solver
 
     def train(self, x, d):
+        """
+
+        :param x: Input vectors
+        :param d: Desired outputs. Accepts also multidimensional outputs.
+        :return: A tuple containing number of support vectors, the support multipliers, the indices of the support vectors in the original x vector. For multidimensional output problems, a tuples array is returned.
+        """
         if len(x) == len(d):
             n = len(x)
         else:
@@ -84,9 +101,6 @@ class SVR(SVM):
         d = d[indexes]
         return x, support_alpha, d, bias, indexes
 
-    # def comput_bias(self):
-    #     i0 = np.where(np.)
-
     def solve_optimization(self, d, Q):
         """
         :param d: desired outputs
@@ -108,8 +122,6 @@ class SVR(SVM):
         y = np.append(np.full(n, 1.), np.full(n, -1.))
         e = np.full((1, 1), 0.)
 
-
-
         f_star = alpha_opt = None
         if self.exact_solver is not None:
             self.exact_solver.define_quad_objective(G, q, l, u, y, e)
@@ -118,10 +130,11 @@ class SVR(SVM):
         self.solver.define_quad_objective(G, q, l, u, y, e)
 
         if self.decompose:
+            # TODO make it work
             nsp = 128
             alpha = np.zeros(2 * n)
 
-            def subproblem(k, alpha, working_indexes = None):
+            def subproblem(k, alpha, working_indexes=None):
                 if working_indexes is None:
                     qbb, qnb, qnn = split_kernel(Q, k * nsp, (k + 1) * nsp)
 
@@ -142,8 +155,9 @@ class SVR(SVM):
                 else:
                     print(Q.shape, working_indexes.shape)
 
-                    effective = np.unique(np.concatenate([working_indexes,working_indexes[:n]-n, working_indexes[n:]+n]))
-                    ind_for_kern = np.unique(np.concatenate([working_indexes[n:],working_indexes[:n]-n]))
+                    effective = np.unique(
+                        np.concatenate([working_indexes, working_indexes[:n] - n, working_indexes[n:] + n]))
+                    ind_for_kern = np.unique(np.concatenate([working_indexes[n:], working_indexes[:n] - n]))
                     print(ind_for_kern.shape, effective.shape)
                     qbb, qnb, qnn = split_kernel_working(Q, ind_for_kern)
 
@@ -163,8 +177,8 @@ class SVR(SVM):
 
             working_indexes = None
             iter = 0
-            while self.solver.grad_norm(alpha) > self.solver.tol and iter <2:
-                print("gradient: ",)
+            while self.solver.grad_norm(alpha) > self.solver.tol and iter < 2:
+                print("gradient: ", )
                 if working_indexes is None:
                     xbs = Parallel(n_jobs=4, max_nbytes=None)(
                         delayed(subproblem)(k, alpha) for k in range(int(n / nsp)))
@@ -177,20 +191,21 @@ class SVR(SVM):
                     alpha[working_indexes] = xb
 
                 working_indexes = np.where(alpha > 1e-6)[0]
-                iter +=1
+                iter += 1
             # print(alpha)
             print("gradient: ", self.solver.grad_norm(alpha))
 
             return alpha
         else:
 
-            start_time = time.time()
+            if self.verbose: start_time = time.time()
+
             alpha, f_star, gradient = self.solver.solve(x0=np.zeros(2 * n), x_opt=alpha_opt, f_opt=f_star)
-            end_time = time.time() - start_time
 
             if self.verbose:
+                end_time = time.time() - start_time
                 print("took {} to solve".format(end_time))
-            # input()
+
             return alpha
 
     def compute_out(self, x):
@@ -205,9 +220,7 @@ class SVR(SVM):
 
     def single_output_predition(self, x, support_alpha, sv, bias):
         f = lambda i: support_alpha[i] * self.kernel(x, sv[i])
-        out = np.sum(np.array(list(map(f, np.arange(len(support_alpha)))))) \
-              # + bias
-
+        out = np.sum(np.array(list(map(f, np.arange(len(support_alpha)))))) + bias
         return out
 
     def predict(self, x):
