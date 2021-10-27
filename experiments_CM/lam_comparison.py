@@ -37,7 +37,7 @@ cols = 3
 fig, axs = plt.subplots(2,cols)
 plt.yscale('log')
 
-n_problems = 10
+n_problems = 1
 all_problems = generate_regression_from_feature_sample_dict(feature_samples_dict, n_problems)
 
 for ls in GVPM.LineSearches.values:
@@ -86,10 +86,10 @@ for ls in GVPM.LineSearches.values:
 
         table.append(row)
 
-    out_dir = "plots/lambda/"
-    plt.savefig(out_dir + "lambda_{}.png".format(ls))
-    with open(out_dir + "lamda_{}.txt".format(ls), "w", encoding="utf-8") as out_file:
-        out_file.write(tabulate([r.values() for r in table], table[0].keys(), tablefmt='latex', floatfmt=".2e"))
-    with open(out_dir + "lamda_{}.csv".format(ls), "w", encoding="utf-8") as out_file:
-        out_file.write(tabulate([r.values() for r in table], table[0].keys(), tablefmt='tsv', floatfmt=".2e"))
+    # out_dir = "plots/lambda/"
+    # plt.savefig(out_dir + "lambda_{}.png".format(ls))
+    # with open(out_dir + "lamda_{}.txt".format(ls), "w", encoding="utf-8") as out_file:
+    #     out_file.write(tabulate([r.values() for r in table], table[0].keys(), tablefmt='latex', floatfmt=".2e"))
+    # with open(out_dir + "lamda_{}.csv".format(ls), "w", encoding="utf-8") as out_file:
+    #     out_file.write(tabulate([r.values() for r in table], table[0].keys(), tablefmt='tsv', floatfmt=".2e"))
 

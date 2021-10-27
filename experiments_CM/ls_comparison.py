@@ -5,6 +5,8 @@ Line-search strategy comparison: EXACT vs BACKTRACKING
 Plots: GAP
 Data: N_iter, ls_cost, time_tot, time_ls
 """
+import os
+
 import numpy as np
 from matplotlib import pyplot as plt
 from sklearn import preprocessing
@@ -30,6 +32,7 @@ table = []
 plt.rcParams["figure.figsize"] = (10, 20)
 fig, axs = plt.subplots(3,2)
 plt.yscale('log')
+problems = 1
 
 for i, d in enumerate(feature_samples_dict):
     C = 1
@@ -46,8 +49,6 @@ for i, d in enumerate(feature_samples_dict):
     for ls in GVPM.LineSearches.values:
         solver = GVPM(ls=ls, n_min=2, tol=tol, lam_low=1e-3, plots=False, proj_tol=1e-3)
         stats = []
-
-        problems = 10
 
         for p in range(problems):
             X, y = make_regression(n_samples=d['samples'], n_features=d['features'])
@@ -77,7 +78,8 @@ for i, d in enumerate(feature_samples_dict):
 
 
 
-out_dir = "plots/line_search/"
+out_dir = "plots/line_search_bounds/"
+os.mkdir(out_dir)
 plt.savefig(out_dir + "ls.png")
 with open(out_dir + "ls_table.txt", "w", encoding="utf-8") as out_file:
     out_file.write(tabulate([r.values() for r in table], table[0].keys(), tablefmt='latex', floatfmt=".2e"))
