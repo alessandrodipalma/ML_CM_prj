@@ -78,7 +78,7 @@ for i, d in enumerate(feature_samples_dict):
 
 
 
-out_dir = "plots/line_search_bounds/"
+out_dir = "plots/line_search_retry/"
 os.mkdir(out_dir)
 plt.savefig(out_dir + "ls.png")
 with open(out_dir + "ls_table.txt", "w", encoding="utf-8") as out_file:

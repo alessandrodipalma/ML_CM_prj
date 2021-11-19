@@ -36,8 +36,9 @@ class SVR(SVM):
         if len(x) == len(d):
             n = len(x)
         else:
-            print("X and y must have same size! Got X:{}, y:{}".format(x.shape, d.shape))
-            pass
+
+            raise ValueError("X and y must have same size! Got X:{}, y:{}".format(x.shape, d.shape))
+
 
         if self.gamma == 'auto':
             self.gamma_value = 1 / n
@@ -46,7 +47,7 @@ class SVR(SVM):
         # print("training with x={}, d={}".format(x,d))
 
         K = self.compute_kernel_matrix(x)
-        print(d.shape, len(d.shape))
+        # print(d.shape, len(d.shape))
         if len(d.shape) == 1:
             self.x, self.support_alpha, self.d, self.bias, indexes = self.compute_alphas(K, d, n, x)
             return len(self.support_alpha), self.support_alpha, indexes
@@ -148,17 +149,17 @@ class SVR(SVM):
                     Gbn = np.block([[qnb, -qnb], [-qnb, qnb]])
                     eb = -yn @ xn
                     self.decomp_solver.define_quad_objective(Gbb, Gbn.T @ xn + qb, lb, ub, yb, eb)
-                    print("solving for k=", k)
+                    # print("solving for k=", k)
                     xb, f_star, gradient = self.decomp_solver.solve(x0=xb)
-                    print("solved")
+                    # print("solved")
                     return xb, k
                 else:
-                    print(Q.shape, working_indexes.shape)
+                    # print(Q.shape, working_indexes.shape)
 
                     effective = np.unique(
                         np.concatenate([working_indexes, working_indexes[:n] - n, working_indexes[n:] + n]))
                     ind_for_kern = np.unique(np.concatenate([working_indexes[n:], working_indexes[:n] - n]))
-                    print(ind_for_kern.shape, effective.shape)
+                    # print(ind_for_kern.shape, effective.shape)
                     qbb, qnb, qnn = split_kernel_working(Q, ind_for_kern)
 
                     xb, xn = get_working_part(alpha, effective)
@@ -178,7 +179,7 @@ class SVR(SVM):
             working_indexes = None
             iter = 0
             while self.solver.grad_norm(alpha) > self.solver.tol and iter < 2:
-                print("gradient: ", )
+                # print("gradient: ", )
                 if working_indexes is None:
                     xbs = Parallel(n_jobs=4, max_nbytes=None)(
                         delayed(subproblem)(k, alpha) for k in range(int(n / nsp)))
@@ -193,7 +194,7 @@ class SVR(SVM):
                 working_indexes = np.where(alpha > 1e-6)[0]
                 iter += 1
             # print(alpha)
-            print("gradient: ", self.solver.grad_norm(alpha))
+            # print("gradient: ", self.solver.grad_norm(alpha))
 
             return alpha
         else:
@@ -204,7 +205,7 @@ class SVR(SVM):
 
             if self.verbose:
                 end_time = time.time() - start_time
-                print("took {} to solve".format(end_time))
+                # print("took {} to solve".format(end_time))
 
             return alpha
 

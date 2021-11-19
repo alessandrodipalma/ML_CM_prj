@@ -111,6 +111,7 @@ class SVM:
         u = np.full(n, float(self.C))
 
         self.solver.define_quad_objective(Q, q, l, u, d, 0)
+
         alpha = self.solver.solve(x0=np.full(n, self.C / 2))[0]
         return alpha
 

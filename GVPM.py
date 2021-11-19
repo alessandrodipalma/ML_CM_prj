@@ -39,10 +39,10 @@ class GVPM(Solver):
         EXACT_RATE = 'ex_rate'
         ESTIMATE_RATE = 'est_rate'
 
-    def __init__(self, ls=LineSearches.EXACT, a_min=1e-5, a_max=1e5, n_min=3, lam_low=1e-3, lam_upp=1, max_iter=100,
-                 stopping_rule=StoppingRules.gradient, tol=1e-3,
-                 verbose=False, proj_tol=1e-8, plots=True, fixed_lambda=None, fixed_alpha=None,
-                 checkpointing=False):
+    def __init__(self, ls=LineSearches.EXACT, a_min=1e-5, a_max=1e5, n_min=3, lam_low=1e-3, lam_upp=1, max_iter=10000,
+                 stopping_rule=StoppingRules.gradient, tol=1e-3, starting_rule=1,
+                 proj_tol=1e-8, fixed_lambda=None, fixed_alpha=None,
+                 checkpointing=False, verbose=False, plots=True, do_stats=False):
         """
 
         :param ls: Line search strategy. Choose from one available in GVPM.Linesearches.values
@@ -54,12 +54,13 @@ class GVPM(Solver):
         :param max_iter: Maximum number of GVPM iterates
         :param stopping_rule: Stopping rule. Chose one from GVPM.StoppingRules
         :param tol: requested tolerance for the chosen stopping rule. The behaviour can vary wrt the chosen stopping rule.
-        :param verbose: Boolean that enables or disables the prompts from the algorithm.
         :param proj_tol: Requested precision on the solution of the projection subproblem.
-        :param plots: Boolean that enables plotting.
         :param fixed_lambda: If specified, the lam_upp and lam_low params will be ignored and the stepsize will be fixed.
         :param fixed_alpha: If specified, the a_min and a_max params will be ignored and the projection scaling factor will be fixes.
+
         :param checkpointing: The algorithm runs with tol = 1e-08. Creates a dictionary in which are stored the f value and the iterate number at each order of magnitude.
+        :param verbose: Boolean that enables or disables the prompts from the algorithm.
+        :param plots: Boolean that enables plotting.
         """
 
         super().__init__(max_iter, tol, verbose)
@@ -67,7 +68,8 @@ class GVPM(Solver):
         self.a_max = a_max
         self.n_min = n_min
         self.n_max = 10
-        self.current_rule = 1
+        self.starting_rule = starting_rule
+        self.current_rule = self.starting_rule
         self.lam_low = lam_low
         self.lam_upp = lam_upp
         self.rule_iter = 1
@@ -81,6 +83,17 @@ class GVPM(Solver):
         self.stopping_rule = stopping_rule
 
         self.checkpointing = checkpointing
+        self.do_stats = do_stats
+
+    def params(self):
+        """
+
+        :return: A dictionary containing all the current parameters for the solver
+        """
+        return {"a_max": self.a_max, "a_min": self.a_min, "n_min": self.n_min, "n_max": self.n_max,
+                "starting_rule": self.starting_rule, "lam_upp": self.lam_upp, "lam_low": self.lam_low,
+                "line_search": self.ls, "proj_tol": self.projection_tol, "fixed_alpha": self.fixed_alpha,
+                "fixed_lambda": self.fixed_lambda, "stopping_rule": self.stopping_rule}
 
     def _update_rule_1(self):
         return self.d_norm ** 2 / self.dQd
@@ -189,8 +202,10 @@ class GVPM(Solver):
             a_s = []
             fxs.append(self.f(x))
 
-        time_proj = 0.0
-        time_search = 0.0
+        if self.do_stats:
+            time_proj = 0.0
+            time_search = 0.0
+
         self.checkpoints = {}
 
         # convergence rate constants
@@ -205,8 +220,10 @@ class GVPM(Solver):
 
         if self.stopping_rule == 'x':
             stop = lambda: k > 1 and rate_norm[-1] < self.tol
+        elif self.stopping_rule == 'rel_f':
+            stop = lambda: k > 2 and (fxs[-1] - fxs[-2]) / fxs[-1] < self.tol
         elif self.stopping_rule == 'f':
-            stop = lambda: k > 2 and (fxs[-1] - fxs[-3]) / fxs[-1] < self.tol
+            stop = lambda: k > 2 and (fxs[-1] - fxs[-2]) < self.tol
         elif self.stopping_rule == 'd':
             stop = lambda: self.d_norm < self.tol
 
@@ -218,18 +235,23 @@ class GVPM(Solver):
 
             # print("before\t gradient={}\tx={}\ta={}".format(norm(gradient), norm(x), a))
             # print("K={}\tx={}".format(k, norm(x)))
-            start_time_proj = time.time()
+            if self.do_stats:
+                start_time_proj = time.time()
 
             d = self._project(x - a * gradient) - x
             self.d_norm = norm(d)
             self.dQd = d.T @ self.Q @ d
-            time_proj += time.time() - start_time_proj
+
+            if self.do_stats:
+                time_proj += time.time() - start_time_proj
             # print("\t\tElapsed time in projection", time_proj)
             # print("projected d ={}".format(norm(d)))
 
-            start_time_search = time.time()
+            if self.do_stats:
+                start_time_search = time.time()
             lam, it = self.line_search(x, d, lam)
-            time_search += time.time() - start_time_search
+            if self.do_stats:
+                time_search += time.time() - start_time_search
             it_ls += it
             # print("lambda ", lam)
 
@@ -293,7 +315,9 @@ class GVPM(Solver):
                     a = min(self.a_max, max(self.a_min, a_new))
 
             k += 1
-        end_time = time.time() - start_time
+
+        if self.do_stats:
+            end_time = time.time() - start_time
 
         if self.verbose:
             print("LAST K={}".format(k))
@@ -312,11 +336,17 @@ class GVPM(Solver):
                 self.plot_gradient([f_gaps], ["f_gap"])
             # self.plot_gradient([xs], ['x norm'], title='x norm', scale='linear')
 
-        self.stats = {'it': k, 'it_ls': it_ls, 'time_tot': end_time, 'time_ls': time_search, 'time_proj': time_proj}
+        if self.do_stats:
+            self.stats = {'it': k, 'it_ls': it_ls, 'time_tot': end_time, 'time_ls': time_search, 'time_proj': time_proj}
+
         self.f_gap_history = f_gaps
         self.rate_history = rate_norm
         self.x_history = xs
         self.cond = np.linalg.cond(self.Q)
+        self.f_value = fxs[-1]
+        self.x_value = x
+        self.elapsed_time = time.time() - start_time
+        self.iterations = k
         return x, fxs[-1], d
 
     def plot_gradient(self, histories, labels, title="", scale='log', legend=True):
