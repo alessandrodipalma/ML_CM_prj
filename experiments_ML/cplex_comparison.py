@@ -44,13 +44,14 @@ kernels = [
 #                                                                     ))
 
 feature_samples_dict = [
-                        {'features': 10, 'samples': 200},
+                        # {'features': 10, 'samples': 200},
+                        {'features': 50, 'samples': 50},
+                        {'features': 50, 'samples': 100},
                         {'features': 50, 'samples': 200},
-                        {'features': 100, 'samples': 200},
-                        {'features': 200, 'samples': 200},
-                        {'features': 400, 'samples': 200},
-                        # {'features': 200, 'samples': 500},
-                        # {'features': 300, 'samples': 1000},
+{'features': 50, 'samples': 400},
+                        # {'features': 100, 'samples': 200},
+                        # {'features': 200, 'samples': 200},
+                        # {'features': 400, 'samples': 200},
                         ]
 
 
@@ -69,14 +70,14 @@ for d in feature_samples_dict:
                                                     )
                                 for C in [1]
                                 for eps in [1e-2]
-                                for tol in [1e-1, 1e-2, 1e-4, 1e-6]
+                                for tol in [1e-1, 1e-2]
                                 for kernel, gamma, degree in kernels
                                 for ls in GVPM.LineSearches.values
                                 for a_min in [1, 1e-2, 1e-4, 1e-8]
                                 for a_max in [1, 1e2, 1e4, 1e8]
                                 for n_min in [2, 4, 8]
                                 for lam_low in [1e-1, 1e-2, 1e-3]
-                                for stopping_rule in [GVPM.StoppingRules.gradient]
+                                for stopping_rule in GVPM.StoppingRules.values
                                 for proj_tol in [1e-1, 1e-2, 1e-4, 1e-6]
                                 )
 
@@ -85,5 +86,5 @@ for d in feature_samples_dict:
               "gvpm_train_mse", "gvpm_test_mse", "gvpm_train_mae", "gvpm_test_mae", "gvpm_time", "gvpm_gap", "gvpm_x", "gvpm_iter",
               "ls", "a_min", "a_max", "n_min", "lam_low", "stopping_rule", "proj_tol"]
 
-    with open("cplex_results/gs_results_{}_{}.csv".format(features, samples), "w", encoding="utf-8") as out_file:
+    with open("cplex_results/gs_results_0.1_{}_{}.csv".format(features, samples), "w", encoding="utf-8") as out_file:
         out_file.write(tabulate([r for r in table], header, tablefmt='tsv'))
