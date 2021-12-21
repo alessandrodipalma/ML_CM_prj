@@ -1,6 +1,4 @@
 import time
-
-# import cvxpy
 import numpy as np
 from matplotlib import pyplot as plt
 from numpy.linalg import norm, matrix_power
@@ -323,18 +321,18 @@ class GVPM(Solver):
             print("LAST K={}".format(k))
             print(norm(x), "  ", norm(gradient))
         if self.plots:
-            # self.plot_gradient([ds], ['proj gadient norm'], title="projected gradient norm", scale='log')
-            # self.plot_gradient([rate_norm], ['rate'], title="(x-x_prec)/norm(x)", scale='linear')
-            # self.plot_gradient([rate], ['rate'], title="(x-x_prec)", scale='linear')
-            # self.plot_gradient([orders], ['rate'], title="convergence order estimate = {}".format(np.mean(orders)), scale='linear')
-            # self.plot_gradient([it_mu_rate, mu_rate], ["empirical", "real"], title="mu", scale='log')
-            # self.plot_gradient([mu_rate], ["real"], title="convergence rate",
-            #                    scale='linear', legend=False)
+            self.plot_gradient([ds], ['proj gadient norm'], title="projected gradient norm", scale='log')
+            self.plot_gradient([rate_norm], ['rate'], title="(x-x_prec)/norm(x)", scale='linear')
+            self.plot_gradient([rate], ['rate'], title="(x-x_prec)", scale='linear')
+            self.plot_gradient([orders], ['rate'], title="convergence order estimate = {}".format(np.mean(orders)), scale='linear')
+            self.plot_gradient([it_mu_rate, mu_rate], ["empirical", "real"], title="mu", scale='log')
+            self.plot_gradient([mu_rate], ["real"], title="convergence rate",
+                               scale='linear', legend=False)
             if f_opt is not None:
-                # self.plot_gradient([f_rate, [f_rate_estimate] * len(f_rate)], ['f_rate', 'f_rate_estimate'],
-                #                    title="f gap    f* = {}    f_opt = {}".format(f_opt, fxs[-1]), scale='linear')
+                self.plot_gradient([f_rate, [f_rate_estimate] * len(f_rate)], ['f_rate', 'f_rate_estimate'],
+                                   title="f gap    f* = {}    f_opt = {}".format(f_opt, fxs[-1]), scale='linear')
                 self.plot_gradient([f_gaps], ["f_gap"])
-            # self.plot_gradient([xs], ['x norm'], title='x norm', scale='linear')
+            self.plot_gradient([xs], ['x norm'], title='x norm', scale='linear')
 
         if self.do_stats:
             self.stats = {'it': k, 'it_ls': it_ls, 'time_tot': end_time, 'time_ls': time_search, 'time_proj': time_proj}

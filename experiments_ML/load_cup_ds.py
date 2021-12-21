@@ -11,9 +11,10 @@ from utils import plot_error
 
 basedir =  ''
 def load_cup_train():
-    df = pd.read_csv(basedir + 'monk/ML-CUP20-TR.csv')
-    x = df.iloc[:, 1:].to_numpy()
-    y = df.iloc[:, :2].to_numpy()
+    df = pd.read_csv(basedir + 'cup 2021/ML-CUP21-TR.csv', header=None)
+    x = df.iloc[:, 1:-2].to_numpy()
+
+    y = df.iloc[:, -2:].to_numpy()
     return x, y
 
 
@@ -26,8 +27,8 @@ def load_cup_test():
 print(np.max(load_cup_train()[1]), np.min(load_cup_train()[1]))
 print(np.std(load_cup_train()[1][:,1]), np.var(load_cup_train()[1]))
 
-#
-# X, y = load_cup_train()
+
+X, y = load_cup_train()
 # X = preprocessing.StandardScaler().fit(X,y).transform(X)
 # y_scaler = preprocessing.StandardScaler()
 # y = y_scaler.fit(y).transform(y)

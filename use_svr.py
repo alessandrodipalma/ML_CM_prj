@@ -10,7 +10,7 @@ from utils import plot_error
 
 np.random.seed(42)
 n_features = 5
-X, y = make_regression(n_samples=500, n_features=n_features)
+X, y = make_regression(n_samples=100, n_features=n_features)
 
 X = preprocessing.StandardScaler().fit(X).transform(X)
 y = 2 * (y - min(y)) / (max(y) - min(y)) - 1
@@ -40,7 +40,7 @@ model_sota = svm.SVR(C=C, kernel=kernel, epsilon=eps, gamma=gamma)
 train_err_sota = []
 test_err_sota = []
 
-batch_size = int(len(X_train) / 5)
+batch_size = int(len(X_train) / 2)
 
 print(batch_size)
 
