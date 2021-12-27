@@ -68,7 +68,7 @@ for i in range(int(n_samples/batch_size)):
         histories = {}
 
         stats = []
-        n_sv, alphas, indices = model.train(X_train[:bs], y_train[:bs])
+        n_sv, alphas, indices = model.fit(X_train[:bs], y_train[:bs])
         prediction = model.predict(X_train)
 
         train_err.append(mse(prediction, y_train))

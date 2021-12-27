@@ -48,7 +48,7 @@ for i in range(0, int(len(X) / batch_size)):
     print("i={}----------------------------------------------------------------------".format(i))
     bs = (i + 1) * batch_size
 
-    n_sv, alphas, indices = model.train(X_train[:bs], y_train[:bs])
+    n_sv, alphas, indices = model.fit(X_train[:bs], y_train[:bs])
     prediction = model.predict(X_train)
 
     train_err.append(mse(prediction, y_train))

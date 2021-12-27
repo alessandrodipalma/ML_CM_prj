@@ -39,7 +39,7 @@ def experiment(config, C, eps, kernel, gamma, degree, tol):
         solver = GVPM(ls=GVPM.LineSearches.BACKTRACK, n_min=2, tol=tol, lam_low=1e-3, plots=False, proj_tol=1e-3)
         model = SVR(solver=solver, C=C, kernel=kernel, eps=eps, gamma=gamma, degree=degree)
 
-        model.train(X_train, y_batch)
+        model.fit(X_train, y_batch)
         pred_train = model.predict(X_train)
         pred_test = model.predict(X_test)
         pred_train = y_scaler.revert_scaling(pred_train)

@@ -5,7 +5,7 @@ from numpy.linalg import norm
 
 class DaiFletcher:
 
-    def __init__(self, l, u, a, b, A, c, verbose=True):
+    def __init__(self, l, u, a, b, A, c, verbose=False):
         """
         n = len(x)
         :param l: lower bounds

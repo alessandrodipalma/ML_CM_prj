@@ -35,7 +35,7 @@ for k in SVM.KERNELS:
         X_te = X_test[:bs]
         y_te = y_test[:bs]
 
-        model.train(X_tr, y_tr)
+        model.fit(X_tr, y_tr)
         train_err = mse(model.predict(X_tr), y_tr)
         test_err = mse(model.predict(X_te), y_te)
 

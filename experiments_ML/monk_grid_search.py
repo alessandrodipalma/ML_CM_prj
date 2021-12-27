@@ -30,7 +30,7 @@ def experiment(monk_n, kernel, gamma, degree, C, tol, data_used=1):
                 C=C, kernel=kernel, gamma=gamma, degree=degree)
 
     try:
-        n_sv, alphas, indices = model.train(X_train, y_train)
+        n_sv, alphas, indices = model.fit(X_train, y_train)
     except ZeroDivisionError:
         return monk_n, kernel, gamma, degree, C, tol, "Zero Division Error", 0,0,0
     train_pred = model.predict(X_train)

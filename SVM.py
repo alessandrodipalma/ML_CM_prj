@@ -1,11 +1,27 @@
 import numpy as np
+from numpy import tanh
+
 from Solver import Solver
 
 
-class SVM:
-    KERNELS = {'rbf': 'rbf', 'poly': 'poly', 'linear': 'linear'}
+class Kernels:
+    RBF = 'rbf'
+    POLY = 'poly'
+    Linear = 'linear'
+    Sigmoidal = 'sigmoid'
 
-    def __init__(self, solver: Solver, exact_solver=None, kernel='rbf', C=1.0, gamma='scale', degree=3, verbose=False):
+    class GammaModes:
+        SCALE = 'scale'
+        AUTO = 'auto'
+        ALL = [SCALE, AUTO]
+
+    ALL = [RBF, POLY, Linear, Sigmoidal]
+
+
+class SVM:
+
+    def __init__(self, solver: Solver, exact_solver=None,
+                 kernel=Kernels.RBF, C=1.0, gamma=Kernels.GammaModes.SCALE, degree=3, alpha_tol = 1e-6, verbose=False):
         """
 
         :param solver: Inner solver for the optimization problem.
@@ -24,7 +40,7 @@ class SVM:
         self.gamma_value = None
         self.solver = solver
         self.exact_solver = exact_solver
-
+        self.alpha_tol = alpha_tol
         self.degree = degree
 
     def create_rbf_kernel(self):
@@ -37,15 +53,22 @@ class SVM:
             print("Polinomial kernel with grade {}".format(self.degree))
         return lambda x, xi: (self.gamma_value * np.inner(x, xi) + 1) ** self.degree
 
+    def create_sigmoidal_kernel(self):
+        if self.verbose:
+            print("Polinomial kernel with alpha {}".format(self.gamma))
+        return lambda x, xi: tanh(self.gamma_value * np.inner(x,xi))
+
     def _select_kernel(self, kernel):
-        if kernel == SVM.KERNELS['rbf']:
+        if kernel == Kernels.RBF:
             return self.create_rbf_kernel()
-        elif kernel == SVM.KERNELS['poly']:
+        elif kernel == Kernels.POLY:
             return self.create_poly_kernel()
-        elif kernel == SVM.KERNELS['linear']:
-            return self.create_poly_kernel(1)
+        elif kernel == Kernels.Linear:
+            return self.create_poly_kernel()
+        elif kernel == Kernels.Sigmoidal:
+            return self.create_sigmoidal_kernel()
         else:
-            print("Not valid kernel name. Valid names are {}".format(SVM.KERNELS.values()))
+            print("Not valid kernel name. Valid names are {}".format(Kernels.ALL))
 
     def compute_kernel_matrix(self, x):
         n = len(x)
@@ -58,7 +81,7 @@ class SVM:
 
         return self.K
 
-    def train(self, x, d):
+    def fit(self, x, d):
 
         if len(x) == len(d):
             n = len(x)
@@ -66,9 +89,9 @@ class SVM:
             print("X and y must have same size! Got X:{}, y:{}".format(x.shape, d.shape))
             pass
 
-        if self.gamma == 'auto':
+        if self.gamma == Kernels.GammaModes.AUTO:
             self.gamma_value = 1 / n
-        elif self.gamma == 'scale':
+        elif self.gamma == Kernels.GammaModes.SCALE:
             self.gamma_value = 1 / (n * x.var())
 
         K = self.compute_kernel_matrix(x)
@@ -80,7 +103,7 @@ class SVM:
 
         alpha = self.solve_optimization(d, Q)
         b = 0
-        indexes = np.where(alpha > 1e-6)[0]
+        indexes = np.where(alpha > self.alpha_tol)[0]
         for j in indexes:
             sum = 0
             for i in range(n):

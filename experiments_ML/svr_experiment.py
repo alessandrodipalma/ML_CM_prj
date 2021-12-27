@@ -27,7 +27,7 @@ def experiment(ds, kernel, gamma, degree, C, eps, tol,
         model = SVR(solver=solver, C=C, kernel=kernel, eps=eps, gamma=gamma, degree=degree)
 
         try:
-            n_sv, alphas, indices = model.train(X_train, y_train)
+            n_sv, alphas, indices = model.fit(X_train, y_train)
         except ZeroDivisionError:
             return 0, 0, 0, 0, 0
         train_pred = model.predict(X_train)

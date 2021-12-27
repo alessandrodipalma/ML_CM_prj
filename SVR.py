@@ -7,8 +7,8 @@ from SwapUtils import split_kernel, split_alpha, update_alpha, get_working_part,
 
 class SVR(SVM):
 
-    def __init__(self, solver: Solver, exact_solver=None, decomp_solver: Solver = None, kernel='rbf', C=1, eps=0.001,
-                 gamma='scale', degree=3):
+    def __init__(self, solver: Solver, exact_solver=None, decomp_solver: Solver = None, kernel='rbf', C=1, eps=1e-3,
+                 gamma='scale', degree=3, alpha_tol = 1e-6, verbose=False):
         """
         :param solver: Inner solver for the optimization problem.
         :param exact_solver: Exact solver, should be used to verify or compare the results coming from the specified solver.
@@ -20,13 +20,13 @@ class SVR(SVM):
         :param degree: Specify the degree for the polynomial kernel. The parameter is ignored if kernel != "poly"
         """
 
-        super().__init__(solver, exact_solver, kernel, C, gamma, degree)
+        super().__init__(solver, exact_solver, kernel, C, gamma, degree, alpha_tol, verbose)
         self.eps = eps
         self.is_multi_output = False
         self.decompose = False
         self.decomp_solver = decomp_solver
 
-    def train(self, x, d):
+    def fit(self, x, d):
         """
 
         :param x: Input vectors
@@ -54,7 +54,7 @@ class SVR(SVM):
         else:  # train for each dimension
             self.dimensions = []
             self.is_multi_output = True
-            self.dimensions = Parallel(n_jobs=1, max_nbytes=None)(
+            self.dimensions = Parallel(n_jobs=len(d.shape), max_nbytes=None)(
                 delayed(self.parallel_compute_alpha)(K, d, i, n, x) for i in range(d.shape[1]))
             # for i in range(d.shape[1]):
             #     self.dimensions.append(self.parallel_compute_alpha(K, d, i, n, x))
@@ -191,7 +191,7 @@ class SVR(SVM):
                     xb, working_indexes = subproblem(0, alpha, working_indexes)
                     alpha[working_indexes] = xb
 
-                working_indexes = np.where(alpha > 1e-6)[0]
+                working_indexes = np.where(alpha > self.alpha_tol)[0]
                 iter += 1
             # print(alpha)
             # print("gradient: ", self.solver.grad_norm(alpha))

@@ -73,7 +73,7 @@ for i, (ls, amax) in enumerate(combs):
 
                 model = SVR(solver=solver, C=C, kernel=kernel, eps=eps, gamma=gamma,
                             exact_solver=CplexSolver(tol=1e-10, verbose=False))
-                n_sv, alphas, indices = model.train(X, y)
+                n_sv, alphas, indices = model.fit(X, y)
                 stats.append(solver.stats)
 
             it = 0

@@ -58,7 +58,7 @@ for i, d in enumerate(feature_samples_dict):
 
             model = SVR(solver=solver, C=C, kernel=kernel, eps=eps, gamma=gamma,
                         exact_solver=CplexSolver(tol=1e-10, verbose=False))
-            n_sv, alphas, indices = model.train(X_train, y_train)
+            n_sv, alphas, indices = model.fit(X_train, y_train)
             stats.append(solver.stats)
 
         final_stats = {}
