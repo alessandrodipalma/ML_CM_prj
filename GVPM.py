@@ -40,7 +40,7 @@ class GVPM(Solver):
     def __init__(self, ls=LineSearches.EXACT, a_min=1e-5, a_max=1e5, n_min=3, lam_low=1e-3, lam_upp=1, max_iter=10000,
                  stopping_rule=StoppingRules.gradient, tol=1e-3, starting_rule=1,
                  proj_tol=1e-8, fixed_lambda=None, fixed_alpha=None,
-                 checkpointing=False, verbose=False, plots=True, do_stats=False):
+                 checkpointing=False, verbose=False, plots=False, do_stats=False):
         """
 
         :param ls: Line search strategy. Choose from one available in GVPM.Linesearches.values
@@ -145,7 +145,7 @@ class GVPM(Solver):
     def _project(self, x, solver='dai_fletch'):
         if solver == 'dai_fletch':
             solver = DaiFletcher(self.left_constr, self.right_constr,
-                                 self.y, self.b, np.identity(self.n), x)
+                                 self.y, self.b, np.identity(self.n), x, verbose=False)
             xp = solver.solve(lam_i=1, d_lam=2, eps=self.projection_tol)
             # solver.plot_xtory()
             return xp
