@@ -1,0 +1,10 @@
+\begin{tabular}{lrrlrrrrrr}
+\hline
+ Monk   &   Kernel &   alpha\_tol & Gamma   &   Degree &     C &   opt tol &   train mse &   test mse &   train acc \\
+\hline
+ poly   &       10 &         0.1 & auto    &      100 & 0.1   &  0.368852 &    0.405093 &   0.631148 &    0.594907 \\
+ poly   &       10 &         0.1 & auto    &      100 & 0.001 &  0.368852 &    0.405093 &   0.631148 &    0.594907 \\
+ poly   &       10 &         0.1 & auto    &      100 & 1e-05 &  0.368852 &    0.405093 &   0.631148 &    0.594907 \\
+ poly   &       10 &         0.1 & auto    &      100 & 1e-07 &  0.368852 &    0.405093 &   0.631148 &    0.594907 \\
+\hline
+\end{tabular}
