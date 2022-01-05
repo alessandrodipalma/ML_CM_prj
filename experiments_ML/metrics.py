@@ -28,21 +28,3 @@ def min_max_scale(min_max, data, max=None, min=None, standardize=True):
     data_scaled = data_std * (min_max[1]-min_max[0]) + min_max[0]
     return data_scaled, (min, max)
 
-class Scaler:
-    def __init__(self, scale_min=0, scale_max=1):
-        self.scale_min = scale_min
-        self.scale_max = scale_max
-
-    def scale_back(self, y_pred):
-        y_pred, (_, _) = min_max_scale((self.miny, self.maxy), y_pred, min=self.scale_min, max=self.scale_max, standardize=False)
-        return y_pred
-
-    def scale(self, X_train, y_train, X_valid, y_valid):
-
-        X_train, (self.minx, self.maxx) = min_max_scale((self.scale_min, self.scale_max), X_train)
-
-        X_valid, (_, _) = min_max_scale((self.scale_min, self.scale_max), X_valid, min=self.minx, max=self.maxx)
-        scaled_y_train, (self.miny, self.maxy) = min_max_scale((self.scale_min, self.scale_max), y_train)
-        scaled_y_valid, _ = min_max_scale((self.scale_min, self.scale_max), y_valid, self.miny, self.maxy)
-
-        return X_train, scaled_y_train, X_valid, scaled_y_valid

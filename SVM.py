@@ -1,3 +1,5 @@
+import pickle
+
 import numpy as np
 from numpy import tanh
 
@@ -154,3 +156,14 @@ class SVM:
         if self.verbose:
             print(out)
         return np.sign(out)
+
+    def save(self, filepath):
+        config = (self.C, self.alpha, self.d, self.x, self.kernel_name, self.degree, self.gamma_value, self.gamma, self.b, self.K, self.alpha_tol)
+        with open(filepath, "wb") as fp:
+            pickle.dump(config, fp, pickle.HIGHEST_PROTOCOL)
+
+    def set_params(self,filepath):
+        with open(filepath, "rb") as fp:
+            config = pickle.load(fp)
+            self.C, self.alpha, self.d, self.x, self.kernel_name, self.degree, self.gamma_value, self.gamma,self.b, self.K, self.alpha_tol = config
+

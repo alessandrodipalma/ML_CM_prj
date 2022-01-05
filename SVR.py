@@ -1,3 +1,4 @@
+import pickle
 import time
 from Solver import Solver
 from SVM import SVM, np
@@ -8,7 +9,7 @@ from SwapUtils import split_kernel, split_alpha, update_alpha, get_working_part,
 class SVR(SVM):
 
     def __init__(self, solver: Solver, exact_solver=None, decomp_solver: Solver = None, kernel='rbf', C=1, eps=1e-3,
-                 gamma='scale', degree=3, alpha_tol = 1e-6, verbose=False):
+                 gamma='scale', degree=3, alpha_tol=1e-6, verbose=False):
         """
         :param solver: Inner solver for the optimization problem.
         :param exact_solver: Exact solver, should be used to verify or compare the results coming from the specified solver.
@@ -38,7 +39,6 @@ class SVR(SVM):
         else:
 
             raise ValueError("X and y must have same size! Got X:{}, y:{}".format(x.shape, d.shape))
-
 
         if self.gamma == 'auto':
             self.gamma_value = 1 / n
@@ -226,3 +226,15 @@ class SVR(SVM):
 
     def predict(self, x):
         return self.parallel_predict(x)
+
+    def save(self, filepath):
+        config = (
+        self.C, self.kernel_name, self.degree, self.gamma_value, self.gamma,
+        self.K, self.alpha_tol, self.eps, self.is_multi_output, self.dimensions)
+        with open(filepath, "wb") as fp:
+            pickle.dump(config, fp, pickle.HIGHEST_PROTOCOL)
+
+    def set_params(self, filepath):
+        with open(filepath, "rb") as fp:
+            config = pickle.load(fp)
+            self.C, self.kernel_name, self.degree, self.gamma_value, self.gamma, self.K, self.alpha_tol, self.eps, self.is_multi_output, self.dimensions = config

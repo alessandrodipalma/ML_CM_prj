@@ -1,0 +1,3 @@
+The aim of our work is to implement from scratch and analyze the performance of the generalized variable projection method (GVPM) in the task of support vector machines (SVM) training. 
+We implemnted both the support vector classification and regression algorithms.
+We analyze the paired performance of our model and our GVPM solver with different classification and regression tasks.

@@ -10,7 +10,7 @@ import SVM
 from GVPM import GVPM
 from SVM import SVM as SVM_class
 from experiments_ML.load_monk import load_monk
-from experiments_ML.metrics import Scaler
+from experiments_ML.Scaler import Scaler
 
 
 def experiment(monk, C, alpha_tol, kernel, gamma, degree, tol):

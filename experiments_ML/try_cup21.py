@@ -7,15 +7,16 @@ import SVM
 from Cplex_Solver import CplexSolver
 from GVPM import GVPM
 from SVR import SVR
-from experiments_ML.load_cup_ds import load_cup_train
-from experiments_ML.metrics import mean_euclidean_error, Scaler
+from experiments_ML.load_cup_ds import load_cup_int_train
+from experiments_ML.metrics import mean_euclidean_error
+from experiments_ML.Scaler import Scaler
 from utils import plot_error, plot_sv_number
 
-print(np.max(load_cup_train()[1]), np.min(load_cup_train()[1]))
-print(np.std(load_cup_train()[1][:,1]), np.var(load_cup_train()[1]))
+print(np.max(load_cup_int_train()[1]), np.min(load_cup_int_train()[1]))
+print(np.std(load_cup_int_train()[1][:, 1]), np.var(load_cup_int_train()[1]))
 
 
-X, y = load_cup_train()
+X, y = load_cup_int_train()
 
 
 X_train, X_valid, y_train, y_valid = train_test_split(X, y, test_size=0.2)

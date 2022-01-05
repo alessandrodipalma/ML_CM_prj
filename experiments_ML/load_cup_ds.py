@@ -7,21 +7,32 @@ from sklearn.multioutput import MultiOutputRegressor
 import SVM
 from SVR import SVR
 from GVPM import GVPM
-from experiments_ML.metrics import Scaler
+from experiments_ML.Scaler import Scaler
 from utils import plot_error
 from metrics import mean_euclidean_error, min_max_scale
 
 basedir =  ''
-def load_cup_train():
+def load_cup_int_train():
     df = pd.read_csv(basedir + 'cup 2021/ML-CUP21-INT-TR.csv', header=None)
     x = df.iloc[:, 1:-2].to_numpy()
     y = df.iloc[:, -2:].to_numpy()
     return x, y
 
+def load_cup_train():
+    df = pd.read_csv(basedir + 'cup 2021/ML-CUP21-TR.csv', header=None)
+    x = df.iloc[:, 1:-2].to_numpy()
+    y = df.iloc[:, -2:].to_numpy()
+    return x, y
+
+def load_cup_int_test():
+    df = pd.read_csv(basedir+'cup 2021/ML-CUP21-INT-TS.csv')
+    x = df.iloc[:, 1:-2].to_numpy()
+    y = df.iloc[:, -2:].to_numpy()
+    return x,y
 
 
 def load_cup_test():
-    df = pd.read_csv(basedir+'cup 2021/ML-CUP21-TS.csv')
+    df = pd.read_csv(basedir+'cup 2021/ML-CUP21-TS.csv', header=None)
     x = df.iloc[:, 1:].to_numpy()
     return x
 
