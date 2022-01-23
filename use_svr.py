@@ -4,6 +4,7 @@ from sklearn.datasets import make_regression
 from sklearn.metrics import mean_squared_error as mse
 from sklearn.model_selection import train_test_split
 
+import Cplex_Solver
 from GVPM import GVPM
 from SVR import SVR
 from utils import plot_error
@@ -18,7 +19,7 @@ y = 2 * (y - min(y)) / (max(y) - min(y)) - 1
 print(y)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33)
 
-C = 3
+C = 100
 kernel = 'rbf'
 eps = 0.1
 gamma = 'scale'
@@ -26,10 +27,10 @@ tol = 1e-7
 
 ls = GVPM.LineSearches.BACKTRACK
 
-solver = GVPM(ls=ls, n_min=2, tol=tol, lam_low=1e-3, plots=False, proj_tol=1e-8)
+solver = Cplex_Solver.CplexSolver(tol=1e-3)
 model = SVR(solver=solver,
             # exact_solver=CplexSolver(tol=tol, verbose=False),
-            C=C, kernel=kernel, eps=eps, gamma=gamma)
+            C=C, kernel=kernel, eps=eps, gamma=gamma, alpha_tol=1e-8)
 train_err = []
 test_err = []
 
@@ -40,7 +41,7 @@ model_sota = svm.SVR(C=C, kernel=kernel, epsilon=eps, gamma=gamma)
 train_err_sota = []
 test_err_sota = []
 
-batch_size = int(len(X_train) / 2)
+batch_size = int(len(X_train) / 10)
 
 print(batch_size)
 

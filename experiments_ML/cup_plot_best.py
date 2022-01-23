@@ -16,7 +16,7 @@ X_all = preprocessing.StandardScaler().fit(X_all).transform(X_all)
 
 def experiment(config, C, eps, kernel, gamma, degree, tol):
 
-    epochs = 15
+    epochs = 10
 
 
     X, X_test, y_train, y_test = train_test_split(X_all, y_all, test_size=0.33)
@@ -68,21 +68,21 @@ def experiment(config, C, eps, kernel, gamma, degree, tol):
     axs[1].legend()
     axs[1].set_xlabel("samples")
     axs[1].set_ylabel("Mean Euclidean Distance")
-    plt.savefig("plots/best_cup/cup_{}_learning_curve.png".format(config))
+    # plt.savefig("plots/best_cup/cup_{}_learning_curve.png".format(config))
 
     axs[2].plot(samples, train_mae, label="train")
     axs[2].plot(samples, test_mae, label="test")
     axs[2].legend()
     axs[2].set_xlabel("samples")
     axs[2].set_ylabel("Mean Absolute Error")
-    plt.savefig("plots/best_cup/cup_{}_learning_curve.png".format(config))
-
+    # plt.savefig("plots/best_cup/cup_{}_learning_curve.png".format(config))
+    plt.show()
     #
     return kernel, C, eps, gamma, degree, tol, np.mean(train_mse), np.std(train_mse), np.mean(train_mse), np.std(
         test_mse), np.mean(train_mae), np.std(train_mae), np.mean(test_mae), np.std(test_mae), \
            np.mean(train_mee), np.std(test_mee), np.mean(test_mee), np.std(test_mee)
 
-# experiment(1, 10, 1e-2, 'poly', 'scale', 7, 0.001)
+experiment(1, 10, 1e-2, 'poly', 'scale', 7, 0.001)
 # experiment(2, 1, 1e-3, 'linear', 'scale', 2, 0.1)
 # experiment(3, 1, 1e-2, 'poly', 'scale', 3, 1e-3)
 # experiment("4scaled", 0.01, 1e-4, 'poly', 'scale', 3, 1e-1)

@@ -5,6 +5,9 @@ from Solver import Solver
 
 
 class Kernels:
+    """
+    This is a static utility class to refer to the implemented kernels and parameters.
+    """
     RBF = 'rbf'
     POLY = 'poly'
     Linear = 'linear'

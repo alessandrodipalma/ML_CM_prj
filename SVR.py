@@ -36,18 +36,11 @@ class SVR(SVM):
         if len(x) == len(d):
             n = len(x)
         else:
-
             raise ValueError("X and y must have same size! Got X:{}, y:{}".format(x.shape, d.shape))
 
-
-        if self.gamma == 'auto':
-            self.gamma_value = 1 / n
-        elif self.gamma == 'scale':
-            self.gamma_value = 1 / (n * x.var())
-        # print("training with x={}, d={}".format(x,d))
-
+        self.compute_gamma(n, x)
         K = self.compute_kernel_matrix(x)
-        # print(d.shape, len(d.shape))
+
         if len(d.shape) == 1:
             self.x, self.support_alpha, self.d, self.bias, indexes = self.compute_alphas(K, d, n, x)
             return len(self.support_alpha), self.support_alpha, indexes
@@ -56,11 +49,14 @@ class SVR(SVM):
             self.is_multi_output = True
             self.dimensions = Parallel(n_jobs=len(d.shape), max_nbytes=None)(
                 delayed(self.parallel_compute_alpha)(K, d, i, n, x) for i in range(d.shape[1]))
-            # for i in range(d.shape[1]):
-            #     self.dimensions.append(self.parallel_compute_alpha(K, d, i, n, x))
-
             self.dimensions = sorted(self.dimensions, key=lambda k: k['i'])
             return self.dimensions
+
+    def compute_gamma(self, n, x):
+        if self.gamma == 'auto':
+            self.gamma_value = 1 / n
+        elif self.gamma == 'scale':
+            self.gamma_value = 1 / (n * x.var())
 
     def parallel_compute_alpha(self, K, d, i, n, x):
         # print("----------------------------------------------- i = ", i)
@@ -78,22 +74,12 @@ class SVR(SVM):
 
         alpha = self.solve_optimization(d, K)
         multipliers = alpha[:n] - alpha[n:]
-        indexes = np.where(abs(multipliers) > (self.C * 1e-6))[0]
+        indexes = np.where(abs(multipliers) > self.alpha_tol)[0]
 
-        # print("number of sv: ", len(indexes), )
+        if self.verbose:
+            print("number of sv: {}".format(len(indexes)))
 
-        def single_predict(input):
-            return self.single_output_predition(input, multipliers, x, 0)
-
-        predictions = np.array(list(map(single_predict, x)))
-        estimates = d - predictions - np.full(len(x), - self.eps)
-
-        a = alpha[:n]
-        a_star = alpha[n:]
-        selected_estimates_left = estimates[np.where(np.logical_or(np.logical_and(a < self.C, a > 1e-6),
-                                                                   np.logical_and(a_star > 1e-6, a_star < self.C)))]
-
-        bias = np.mean(selected_estimates_left)
+        bias = self.compute_bias(alpha, d, n, x, multipliers)
 
         if self.verbose:
             print("bias {}".format(bias))
@@ -101,6 +87,30 @@ class SVR(SVM):
         support_alpha = multipliers[indexes]
         d = d[indexes]
         return x, support_alpha, d, bias, indexes
+
+    def compute_bias(self, alpha, d, n, x, multipliers):
+        """
+        Compute the bias according to the formulation found in the haykin book.
+        :param alpha:
+        :param d:
+        :param n:
+        :param x:
+        :param multipliers:
+        :return:
+        """
+        def single_predict(input):
+            return self.single_output_predition(input, multipliers, x, 0)
+
+        predictions = np.array(list(map(single_predict, x)))
+        estimates = d - predictions - np.full(len(x), - self.eps)
+        a = alpha[:n]
+        a_star = alpha[n:]
+        precision = 1e-8 # use this instead of zero
+        selected_estimates_left = estimates[np.where(np.logical_or(
+            np.logical_and(a < self.C, a > precision),
+            np.logical_and(a_star > precision, a_star < self.C)))]
+        bias = np.mean(selected_estimates_left)
+        return bias
 
     def solve_optimization(self, d, Q):
         """
@@ -193,30 +203,33 @@ class SVR(SVM):
 
                 working_indexes = np.where(alpha > self.alpha_tol)[0]
                 iter += 1
-            # print(alpha)
-            # print("gradient: ", self.solver.grad_norm(alpha))
 
             return alpha
         else:
 
-            if self.verbose: start_time = time.time()
+            if self.verbose:
+                start_time = time.time()
 
             alpha, f_star, gradient = self.solver.solve(x0=np.zeros(2 * n), x_opt=alpha_opt, f_opt=f_star)
 
             if self.verbose:
                 end_time = time.time() - start_time
-                # print("took {} to solve".format(end_time))
+                print("took {} to solve".format(end_time))
 
             return alpha
 
     def compute_out(self, x):
         if self.is_multi_output:
-            out = np.zeros(len(self.dimensions))
-            for i, dim in enumerate(self.dimensions):
-                out[i] = self.single_output_predition(x, dim['support_alpha'], dim['x'], dim['bias'])
+            out = self.multi_output_prediction(x)
         else:
             out = self.single_output_predition(x, self.support_alpha, self.x, self.bias)
 
+        return out
+
+    def multi_output_prediction(self, x):
+        out = np.zeros(len(self.dimensions))
+        for i, dim in enumerate(self.dimensions):
+            out[i] = self.single_output_predition(x, dim['support_alpha'], dim['x'], dim['bias'])
         return out
 
     def single_output_predition(self, x, support_alpha, sv, bias):
