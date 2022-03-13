@@ -7,13 +7,14 @@ import SVM
 from SVR import SVR
 from sklearn.metrics import mean_squared_error as mse, mean_absolute_error as mae, euclidean_distances
 
-from experiments_ML.metrics import Scaler, mean_euclidean_error, mean_squared_error
+from experiments_ML.metrics import mean_euclidean_error, mean_squared_error
+from experiments_ML.Scaler import Scaler
 from GVPM import GVPM
 from Cplex_Solver import CplexSolver
-from experiments_ML.load_cup_ds import load_cup_train
+from experiments_ML.load_cup_ds import load_cup_int_train
 from sklearn.model_selection import KFold
 
-X, y = load_cup_train()
+X, y = load_cup_int_train()
 print(X.shape, y.shape)
 
 kf = KFold(n_splits=5)

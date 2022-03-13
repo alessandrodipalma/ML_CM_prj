@@ -1,3 +1,5 @@
+import pickle
+
 import numpy as np
 from numpy import tanh
 
@@ -105,24 +107,26 @@ class SVM:
                 Q[i, j] = d[i] * d[j] * K[i, j]
 
         alpha = self.solve_optimization(d, Q)
-        b = 0
         indexes = np.where(alpha > self.alpha_tol)[0]
-        for j in indexes:
-            sum = 0
-            for i in range(n):
-                sum += alpha[i] * d[i] * K[i, j]
-            b += d[j] - sum
 
-        try:
-            self.b = np.array(b / len(indexes))
-        except ZeroDivisionError:
-            self.b = []
-
+        self.compute_bias(K, alpha, d, indexes, n)
         self.alpha = np.array(alpha[indexes])
         self.d = np.array(d[indexes])
         self.x = np.array(x[indexes])
 
         return len(self.alpha), self.alpha, indexes
+
+    def compute_bias(self, K, alpha, d, indexes, n):
+        b = 0
+        for j in indexes:
+            sum = 0
+            for i in range(n):
+                sum += alpha[i] * d[i] * K[i, j]
+            b += d[j] - sum
+        try:
+            self.b = np.array(b / len(indexes))
+        except ZeroDivisionError:
+            self.b = []
 
     def solve_optimization(self, d, Q):
         """
@@ -157,3 +161,14 @@ class SVM:
         if self.verbose:
             print(out)
         return np.sign(out)
+
+    def save(self, filepath):
+        config = (self.C, self.alpha, self.d, self.x, self.kernel_name, self.degree, self.gamma_value, self.gamma, self.b, self.K, self.alpha_tol)
+        with open(filepath, "wb") as fp:
+            pickle.dump(config, fp, pickle.HIGHEST_PROTOCOL)
+
+    def set_params(self,filepath):
+        with open(filepath, "rb") as fp:
+            config = pickle.load(fp)
+            self.C, self.alpha, self.d, self.x, self.kernel_name, self.degree, self.gamma_value, self.gamma,self.b, self.K, self.alpha_tol = config
+

@@ -1,90 +1,175 @@
 import numpy as np
-from sklearn import preprocessing
-from sklearn.model_selection import train_test_split
+from joblib import Parallel, delayed
+from sklearn.model_selection import train_test_split, KFold
 import matplotlib.pyplot as plt
+from tabulate import tabulate
+
+from Cplex_Solver import CplexSolver
 from SVR import SVR
-from sklearn.metrics import mean_squared_error as mse, mean_absolute_error as mae, euclidean_distances
 
-from experiments_ML.ZeroOneScaler import Scaler
-from GVPM import GVPM
-from experiments_ML.load_cup_ds import load_cup_train
+from experiments_ML.metrics import mean_squared_error, mean_euclidean_error
+from experiments_ML.Scaler import Scaler
+from experiments_ML.load_cup_ds import load_cup_int_train, load_cup_int_test
 
-X_all, y_all = load_cup_train()
-X_all = preprocessing.StandardScaler().fit(X_all).transform(X_all)
-# print(X.shape, y.shape)
+X, y = load_cup_int_train()
+X_int_test, y_int_test = load_cup_int_test()
+print(X.shape, y.shape)
 
-
-def experiment(config, C, eps, kernel, gamma, degree, tol):
-
-    epochs = 10
-
-
-    X, X_test, y_train, y_test = train_test_split(X_all, y_all, test_size=0.33)
-
+kf = KFold(n_splits=5)
+def experiment(C, alpha_tol, eps, kernel, gamma, degree, tol):
     train_mse = []
     test_mse = []
-    train_mae = []
-    test_mae = []
     train_mee = []
     test_mee = []
+
+    for train_ind, test_ind in kf.split(X):
+
+        X_train = X[train_ind, :]
+        y_train = y[train_ind, :]
+        X_test = X[test_ind, :]
+        y_test = y[test_ind, :]
+        scaler = Scaler()
+        # print(train_ind, test_ind, X_train.shape, y_test.shape)
+        X_train, scaled_y_train, X_test, scaled_y_test = scaler.scale(X_train, y_train, X_test, y_test)
+
+        # solver = GVPM(ls=GVPM.LineSearches.BACKTRACK, n_min=2, tol=tol, lam_low=1e-2, a_max=1e10,
+        #               a_min=1, plots=False, verbose=False, proj_tol=1e-7, max_iter=1e5)
+        solver = CplexSolver(tol = tol)
+        model = SVR(solver=solver, C=C, kernel=kernel, eps=eps, gamma=gamma, degree=degree, alpha_tol=alpha_tol)
+        try:
+            print("fitting...")
+            model.fit(X_train, scaled_y_train)
+            pred_train = model.predict(X_train)
+            pred_test = model.predict(X_test)
+            # pred_int_test = model.predict(X_int_test)
+
+            pred_train = scaler.scale_back(pred_train)
+            pred_test = scaler.scale_back(pred_test)
+
+            train_mse.append(mean_squared_error(y_train, pred_train))
+            test_mse.append(mean_squared_error(y_test, pred_test))
+            train_mee.append(mean_euclidean_error(y_train, pred_train))
+            test_mee.append(mean_euclidean_error(y_test, pred_test))
+            print(test_mee, train_mee)
+        except Exception:
+            print(kernel, C, alpha_tol, eps, gamma, degree, tol, Exception.__name__)
+
+            return kernel, C, alpha_tol, eps, gamma, degree, tol, 0, 0, 0, Exception.__name__
+
+    # print(train_err, test_err, train_mae, test_mae)
+    train_mse = remove_nans(train_mse)
+    test_mse = remove_nans(test_mse)
+    train_mee = remove_nans(train_mee)
+    test_mee = remove_nans(test_mee)
+
+    r = kernel, C, alpha_tol, eps, gamma, degree, tol, \
+        np.mean(train_mse, ), np.std(train_mse), np.mean(test_mse), np.std(test_mse), \
+        np.mean(train_mee), np.std(train_mee), np.mean(test_mee), np.std(test_mee)
+    with open("cup 2021/temp_alpha_opt_kf.csv", "a", encoding="utf-8") as out_file:
+        out_file.write(tabulate([r], tablefmt='tsv'))
+        out_file.write("\n")
+    print(kernel, C, alpha_tol, eps, gamma, degree, tol, np.mean(train_mee), np.mean(test_mee))
+
+    return r
+
+
+def remove_nans(train_mse):
+    train_mse = np.array(train_mse)
+    train_mse = train_mse[np.logical_not(np.isnan(train_mse))]
+    return train_mse
+
+
+def experiment_nokf(C, alpha_tol, eps, kernel, gamma, degree, tol, index="", epochs=1, plot=False):
+    train_mse = []
+    test_mse = []
+    train_mee = []
+    test_mee = []
+
+    X_train = X
+    y_train = y
+    X_test = X_int_test
+    y_test = y_int_test
+    scaler = Scaler()
+    # print(train_ind, test_ind, X_train.shape, y_test.shape)
+    X_train, scaled_y_train, X_test, scaled_y_test = scaler.scale(X_train, y_train, X_test, y_test)
+
+    # solver = GVPM(ls=GVPM.LineSearches.BACKTRACK, n_min=2, tol=tol, lam_low=1e-2, a_max=1e10,
+    #               a_min=1, plots=False, verbose=False, proj_tol=1e-7, max_iter=1e5)
+    solver = CplexSolver(tol = tol)
+    model = SVR(solver=solver, C=C, kernel=kernel, eps=eps, gamma=gamma, degree=degree, alpha_tol=alpha_tol)
+
+    epochs = epochs
     for k in range(epochs):
-        bs = int(len(X_all) / epochs) * (k + 1)
+        print("fitting...")
+        bs = int(len(X_train) / epochs) * (k + 1)
         print("samples", bs)
-        X_train = X[:bs]
-        y_batch = y_train[:bs]
-        y_scaler = Scaler()
-        y_batch = y_scaler.bring_in_zeroone(y_batch)
-        print(X_train.shape, X_test.shape, y_batch.shape, y_test.shape)
+        X_train_batch = X_train[:bs]
+        scaled_y_train_batch = scaled_y_train[:bs]
+        print(X_train_batch.shape, scaled_y_train_batch.shape)
 
-        solver = GVPM(ls=GVPM.LineSearches.BACKTRACK, n_min=2, tol=tol, lam_low=1e-3, plots=False, proj_tol=1e-3)
-        model = SVR(solver=solver, C=C, kernel=kernel, eps=eps, gamma=gamma, degree=degree)
-
-        model.fit(X_train, y_batch)
-        pred_train = model.predict(X_train)
+        model.fit(X_train_batch, scaled_y_train_batch)
+        # model.save("cup 2021/final_model.bin")
+        # model = SVR(solver=solver, C=C, kernel=kernel, eps=eps, gamma=gamma, degree=degree, alpha_tol=alpha_tol)
+        # model.set_params("cup 2021/final_model.bin")
+        pred_train = model.predict(X_train_batch)
         pred_test = model.predict(X_test)
-        pred_train = y_scaler.revert_scaling(pred_train)
-        pred_test = y_scaler.revert_scaling(pred_test)
-        y_batch = y_scaler.revert_scaling(y_batch)
 
-        train_mse.append(mse(y_batch, pred_train))
-        test_mse.append(mse(y_test, pred_test))
-        train_mae.append(mae(y_batch, pred_train))
-        test_mae.append(mae(y_test, pred_test))
-        train_mee.append(np.mean(euclidean_distances(y_batch, pred_train)))
-        test_mee.append(np.mean(euclidean_distances(y_test, pred_test)))
-        print(test_mee)
+        pred_train = scaler.scale_back(pred_train)
+        pred_test = scaler.scale_back(pred_test)
 
-    plt.rcParams["figure.figsize"] = (13, 5)
-    fig, axs = plt.subplots(1, 3)
-    samples = (np.arange(len(train_mse))+1) * int(len(X_train)/epochs)
-    axs[0].plot(samples, train_mse, label="train")
-    axs[0].plot(samples, test_mse, label="test")
-    axs[0].legend()
-    axs[0].set_xlabel("samples")
-    axs[0].set_ylabel("mse")
+        train_mse.append(mean_squared_error(y_train[:bs], pred_train))
+        test_mse.append(mean_squared_error(y_test, pred_test))
+        train_mee.append(mean_euclidean_error(y_train[:bs], pred_train))
+        test_mee.append(mean_euclidean_error(y_test, pred_test))
+        print(test_mee, train_mee)
 
-    axs[1].plot(samples, train_mee, label="train")
-    axs[1].plot(samples, test_mee, label="test")
-    axs[1].legend()
-    axs[1].set_xlabel("samples")
-    axs[1].set_ylabel("Mean Euclidean Distance")
-    # plt.savefig("plots/best_cup/cup_{}_learning_curve.png".format(config))
+    r = kernel, C, alpha_tol, eps, gamma, degree, tol, \
+        np.mean(train_mse, ), np.std(train_mse), np.mean(test_mse), np.std(test_mse), \
+        np.mean(train_mee), np.std(train_mee), np.mean(test_mee), np.std(test_mee)
+    with open("cup 2021/best_result_var_alpha_opy_tol.csv", "a", encoding="utf-8") as out_file:
+        out_file.write(tabulate([r], tablefmt='tsv'))
+        out_file.write("\n")
 
-    axs[2].plot(samples, train_mae, label="train")
-    axs[2].plot(samples, test_mae, label="test")
-    axs[2].legend()
-    axs[2].set_xlabel("samples")
-    axs[2].set_ylabel("Mean Absolute Error")
-    # plt.savefig("plots/best_cup/cup_{}_learning_curve.png".format(config))
-    plt.show()
-    #
-    return kernel, C, eps, gamma, degree, tol, np.mean(train_mse), np.std(train_mse), np.mean(train_mse), np.std(
-        test_mse), np.mean(train_mae), np.std(train_mae), np.mean(test_mae), np.std(test_mae), \
-           np.mean(train_mee), np.std(test_mee), np.mean(test_mee), np.std(test_mee)
+    if plot:
+        plt.rcParams["figure.figsize"] = (5, 5)
+        fig, axs = plt.subplots(1, 1)
+        samples = (np.arange(len(train_mse))+1) * int(len(X_train)/epochs)
+        axs.plot(samples, train_mse, label="train")
+        axs.plot(samples, test_mse, label="test")
+        axs.legend()
+        axs.set_xlabel("samples")
+        axs.set_ylabel("mse")
+        plt.title("{} kernel, C={}, degree={}".format(kernel, C, degree))
+        plt.savefig("cup 2021/learning_curves_alpha/c{}_p{}_{}.png".format(C,degree,kernel))
 
-experiment(1, 10, 1e-2, 'poly', 'scale', 7, 0.001)
-# experiment(2, 1, 1e-3, 'linear', 'scale', 2, 0.1)
-# experiment(3, 1, 1e-2, 'poly', 'scale', 3, 1e-3)
-# experiment("4scaled", 0.01, 1e-4, 'poly', 'scale', 3, 1e-1)
+    return r
 
+best_configs = [
+('poly', 2560, 1e-2, 1e-2, 'scale', 5, 1e-3),
+    ('poly', 2560, 1e-3, 1e-2, 'scale', 5, 1e-3),
+    ('poly',2560,1e-4,1e-2,'scale',5,1e-3),
+    ('poly',2560,1e-5,1e-2,'scale',5,1e-3),
+    ('poly',2560,1e-6,1e-2,'scale',5,1e-3),
+    ('poly',2560,1e-7,1e-2,'scale',5,1e-3),
+    # ('poly',80,1e-7,1e-3,'scale',3,1e-3),
+    # ('poly',2560,1e-1,1e-2,'scale',3,1e-3),
+    # ('rbf',2560,1e-3,1e-3,'auto',1,1e-5),
+    # ('poly',2560, 1e-1, 1e-2,'auto',3,1e-3),
+    # ('rbf',1280,1e-3,1e-3,'auto',1,1e-5),
+]
 
+best_configs = [
+('poly', 2560,  1e-2, 'scale', 5),
+]
+
+# for i, (kernel, C, alpha_tol, eps, gamma, degree, tol) in enumerate(best_configs):
+#     experiment_nokf(C, alpha_tol, eps, kernel, gamma, degree, tol, epochs=10)
+
+table = Parallel(n_jobs=4, verbose=11)(delayed(experiment)(C, alpha_tol, eps, kernel, gamma, degree, tol)
+                                                                for (kernel, C, eps, gamma, degree) in best_configs
+                                       for alpha_tol in [1e-1, 1e-3, 1e-5, 1e-7]
+                                       for tol in [1e-1, 1e-3, 1e-5, 1e-7])
+header = ['Kernel', 'C', 'alpha tol', 'eps', 'gamma', 'degree',  'opt tol', 'train avg mse', 'train std mse',
+          'test avg mse', 'test std mse', 'train avg mee', 'train std mee', 'test avg mee', 'test std mee']
+with open("learning_curves_alpha/top_alpha_var.csv", "w", encoding="utf-8") as out_file:
+    out_file.write(tabulate([r for r in table], header, tablefmt='tsv'))
